@@ -2,7 +2,7 @@
 
 import { createContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { signIn, signOut, getCurrentUser, onAuthStateChange } from '../../lib/services/authService';
+import { signIn, signOut, getCurrentUser, getCurrentSession, onAuthStateChange } from '../../lib/services/authService';
 
 export const AuthContext = createContext({});
 
@@ -24,6 +24,13 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth changes
     const { data: authListener } = onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
+      }
+      if (event === 'SIGNED_OUT') {
+        console.log('User signed out');
+      }
+
       if (session?.user) {
         setUser(session.user);
       } else {
@@ -32,8 +39,18 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
+    // Periodic session refresh (every 50 minutes, before the 1-hour expiry)
+    const refreshInterval = setInterval(async () => {
+      const { data: { session } } = await getCurrentSession();
+      if (session) {
+        // Supabase will automatically refresh if needed
+        console.log('Session check completed');
+      }
+    }, 50 * 60 * 1000); // 50 minutes
+
     return () => {
       authListener?.subscription?.unsubscribe();
+      clearInterval(refreshInterval);
     };
   }, []);
 

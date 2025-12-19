@@ -21,6 +21,13 @@ import {
   FormControlLabel,
   Slider,
   TextField,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Visibility,
@@ -39,6 +46,8 @@ import {
   Clear,
   FilterList,
   Close,
+  List,
+  Compare,
 } from '@mui/icons-material';
 import { formatCurrency, formatDate } from '../../lib/utils/validation';
 
@@ -58,6 +67,12 @@ export default function CandidateCardView({
     relevance: {},
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Selection state for bulk operations
+  const [selected, setSelected] = useState([]);
+  const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const handleFilterChange = (columnName, filterValue) => {
     setFilters(prev => ({
       ...prev,
@@ -92,6 +107,73 @@ export default function CandidateCardView({
       relevance: {},
     });
   };
+
+  // Selection handlers
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      const allIds = filteredCandidates.map(c => c.id);
+      setSelected(allIds);
+    } else {
+      setSelected([]);
+    }
+  };
+
+  const handleSelectOne = (candidateId) => {
+    setSelected(prev => {
+      if (prev.includes(candidateId)) {
+        return prev.filter(id => id !== candidateId);
+      } else {
+        return [...prev, candidateId];
+      }
+    });
+  };
+
+  // Bulk operation handlers
+  const handleStatusMenuClick = (event) => {
+    setStatusMenuAnchor(event.currentTarget);
+  };
+
+  const handleStatusMenuClose = () => {
+    setStatusMenuAnchor(null);
+  };
+
+  const handleBulkStatusUpdate = (status) => {
+    selected.forEach(id => {
+      onToggleShortlist(id, status);
+    });
+    setSelected([]);
+    handleStatusMenuClose();
+  };
+
+  const handleCompareClick = () => {
+    setCompareDialogOpen(true);
+  };
+
+  const handleCompareClose = () => {
+    setCompareDialogOpen(false);
+  };
+
+  const handleBulkDeleteClick = () => {
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteCancel = () => {
+    setBulkDeleteDialogOpen(false);
+  };
+
+  const handleBulkDeleteConfirm = () => {
+    selected.forEach(id => {
+      const candidate = candidates.find(c => c.id === id);
+      if (candidate) {
+        onDelete(id, candidate.full_name);
+      }
+    });
+    setSelected([]);
+    setBulkDeleteDialogOpen(false);
+  };
+
+  // Get selected candidates for compare dialog
+  const selectedCandidates = candidates.filter(c => selected.includes(c.id));
 
   // Extract suitability from AI summary - MUST BE DEFINED BEFORE USE
   const getSuitability = (candidate) => {
@@ -220,12 +302,86 @@ export default function CandidateCardView({
 
   return (
     <>
-      {/* Filter Button and Active Filters */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-        {/* Spacer to push everything to the right */}
+      {/* Filter Section with Bulk Operations */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {/* Left Side: Select All and Bulk Actions */}
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={filteredCandidates.length > 0 && selected.length === filteredCandidates.length}
+              indeterminate={selected.length > 0 && selected.length < filteredCandidates.length}
+              onChange={handleSelectAll}
+              size="small"
+            />
+          }
+          label={<Typography variant="body2" sx={{ fontSize: '0.875rem' }}>Select All</Typography>}
+          sx={{ mr: 1 }}
+        />
+
+        {/* Bulk Action Buttons - Show when items are selected */}
+        {selected.length > 0 && (
+          <>
+            <Typography variant="body2" color="primary" sx={{ fontWeight: 600, mr: 1 }}>
+              {selected.length} selected
+            </Typography>
+
+            {/* Update Status Button with Menu */}
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              startIcon={<List fontSize="small" />}
+              onClick={handleStatusMenuClick}
+              sx={{
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                height: '28px',
+              }}
+            >
+              Update Status
+            </Button>
+
+            {/* Compare AI Button */}
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              startIcon={<Compare fontSize="small" />}
+              onClick={handleCompareClick}
+              disabled={selected.length < 2 || selected.length > 5}
+              sx={{
+                fontSize: '0.75rem',
+                textTransform: 'none',
+                height: '28px',
+              }}
+            >
+              Compare AI ({selected.length})
+            </Button>
+
+            {/* Bulk Delete Button */}
+            <Tooltip title="Delete Selected">
+              <IconButton
+                color="error"
+                size="small"
+                onClick={handleBulkDeleteClick}
+                sx={{
+                  bgcolor: 'error.main',
+                  color: 'white',
+                  '&:hover': { bgcolor: 'error.dark' },
+                  width: 28,
+                  height: 28,
+                }}
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+
+        {/* Spacer to push filter controls to the right */}
         <Box sx={{ flex: 1 }} />
 
-        {/* Active Filter Chips */}
+        {/* Right Side: Active Filter Chips */}
         {filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < 3 && (
           <Chip
             label={`Status: ${filters.status.selected.map(s => s === 'SHORTLISTED' ? 'Shortlisted' : s === 'REJECTED' ? 'Rejected' : 'Pending').join(', ')}`}
@@ -568,13 +724,33 @@ export default function CandidateCardView({
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
+                position: 'relative',
                 transition: 'transform 0.2s, box-shadow 0.2s',
+                border: selected.includes(candidate.id) ? 2 : 1,
+                borderColor: selected.includes(candidate.id) ? 'primary.main' : 'divider',
                 '&:hover': {
                   transform: 'translateY(-4px)',
                   boxShadow: 4,
                 }
               }}
             >
+              {/* Selection Checkbox - Top Right */}
+              <Checkbox
+                checked={selected.includes(candidate.id)}
+                onChange={() => handleSelectOne(candidate.id)}
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  zIndex: 1,
+                  bgcolor: 'background.paper',
+                  borderRadius: 1,
+                  padding: '4px',
+                  '&:hover': { bgcolor: 'action.hover' }
+                }}
+                size="small"
+              />
+
               <CardContent sx={{ flexGrow: 1, pb: 0.5, pt: 1.5, px: 1.5 }}>
                 {/* Header with Avatar and Actions */}
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
@@ -757,6 +933,157 @@ export default function CandidateCardView({
       })}
     </Grid>
       )}
+
+      {/* Status Update Menu */}
+      <Menu
+        anchorEl={statusMenuAnchor}
+        open={Boolean(statusMenuAnchor)}
+        onClose={handleStatusMenuClose}
+      >
+        <MenuItem onClick={() => handleBulkStatusUpdate('PENDING')}>
+          Mark as Pending
+        </MenuItem>
+        <MenuItem onClick={() => handleBulkStatusUpdate('SHORTLISTED')}>
+          Shortlist
+        </MenuItem>
+        <MenuItem onClick={() => handleBulkStatusUpdate('REJECTED')}>
+          Reject
+        </MenuItem>
+      </Menu>
+
+      {/* Compare AI Dialog */}
+      <Dialog
+        open={compareDialogOpen}
+        onClose={handleCompareClose}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          Compare AI Summaries ({selectedCandidates.length} candidates)
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
+            {selectedCandidates.map((candidate) => {
+              const suitability = getSuitability(candidate);
+              return (
+                <Box
+                  key={candidate.id}
+                  sx={{
+                    minWidth: 300,
+                    maxWidth: 400,
+                    flex: 1,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    p: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: 'primary.main',
+                        width: 32,
+                        height: 32,
+                        mr: 1,
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {getInitials(candidate.full_name)}
+                    </Avatar>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="subtitle1" fontWeight="bold" noWrap>
+                        {candidate.full_name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        {candidate.position}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {suitability && (
+                    <Chip
+                      icon={suitability.icon}
+                      label={suitability.label}
+                      color={suitability.color}
+                      size="small"
+                      sx={{ mb: 2, color: 'white' }}
+                    />
+                  )}
+
+                  <Box
+                    sx={{
+                      maxHeight: 400,
+                      overflowY: 'auto',
+                      bgcolor: 'background.default',
+                      p: 2,
+                      borderRadius: 1,
+                    }}
+                  >
+                    {candidate.ai_summary ? (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          whiteSpace: 'pre-wrap',
+                          fontSize: '0.875rem',
+                          '& strong': {
+                            color: 'primary.main',
+                            fontWeight: 'bold'
+                          }
+                        }}
+                        dangerouslySetInnerHTML={{
+                          __html: candidate.ai_summary
+                            .replace(/^(.*?)(?=Score:)/s, (match) => match.replace(/\n/g, '<br/>'))
+                            .replace(/\n(Strengths?:)/g, '<br/><strong>$1</strong>')
+                            .replace(/\n(Gaps?:)/g, '<br/><strong>$1</strong>')
+                            .replace(/\n(Fit for Venzo:)/g, '<br/><strong>$1</strong>')
+                            .replace(/\n(Proceed:)/g, '<br/><strong>$1</strong>')
+                            .replace(/\n•/g, '<br/>•')
+                            .replace(/Score: ([\d.]+) \/ 10/g, '<br/><strong style="color: #0030ce; font-size: 1.1em;">Score: $1 / 10</strong>')
+                        }}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                        No AI summary available
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCompareClose} variant="contained">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={bulkDeleteDialogOpen}
+        onClose={handleBulkDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>
+          Confirm Bulk Delete
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete <strong>{selected.length} candidate(s)</strong>?
+            This action cannot be undone and will permanently remove all their data including resumes.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleBulkDeleteCancel} variant="outlined" color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleBulkDeleteConfirm} variant="contained" color="error" autoFocus>
+            Delete {selected.length} Candidate(s)
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

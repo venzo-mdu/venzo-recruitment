@@ -18,10 +18,9 @@ import {
   Email,
   Phone,
   CurrencyRupee,
+  CalendarToday,
 } from '@mui/icons-material';
 import { validateCandidateForm, validateResume, formatIndianNumber, numberToWords } from '../../lib/utils/validation';
-import { uploadResume } from '../../lib/services/storageService';
-import { submitCandidate } from '../../lib/services/candidateService';
 
 export default function CandidateForm({ onSuccess }) {
   const [formData, setFormData] = useState({
@@ -30,6 +29,7 @@ export default function CandidateForm({ onSuccess }) {
     phone: '',
     currentSalary: '',
     expectedSalary: '',
+    noticePeriod: '',
   });
 
   const [displayValues, setDisplayValues] = useState({
@@ -142,22 +142,47 @@ export default function CandidateForm({ onSuccess }) {
     setLoading(true);
 
     try {
-      // Upload resume
-      const uploadResult = await uploadResume(resume, formData.email);
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error || 'Failed to upload resume. Please try again.');
-      }
+      // Convert resume file to base64 for API transmission
+      const resumeData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',')[1]; // Remove data:application/pdf;base64, prefix
+          resolve({
+            name: resume.name,
+            type: resume.type,
+            data: base64,
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(resume);
+      });
 
-      // Submit candidate data
+      // Prepare candidate data
       const candidateData = {
         ...formData,
-        resumePath: uploadResult.path,
         currentSalary: parseFloat(formData.currentSalary),
         expectedSalary: parseFloat(formData.expectedSalary),
+        noticePeriod: parseInt(formData.noticePeriod, 10),
       };
 
-      const submitResult = await submitCandidate(candidateData);
+      // Submit via API route (includes rate limiting)
+      const response = await fetch('/api/submit-candidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateData,
+          resumeFile: resumeData,
+        }),
+      });
+
+      const submitResult = await response.json();
+
       if (!submitResult.success) {
+        // Check for rate limit error
+        if (submitResult.rateLimitExceeded) {
+          throw new Error(submitResult.error || 'Too many submission attempts. Please try again later.');
+        }
+
         // Check if it's a duplicate error and highlight the field
         if (submitResult.error.includes('email address has already been used')) {
           setErrors({ email: 'This email has already been used' });
@@ -329,6 +354,30 @@ export default function CandidateForm({ onSuccess }) {
               </Alert>
             </Grid>
           )}
+
+          {/* Notice Period */}
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Notice Period (in days)"
+              name="noticePeriod"
+              type="number"
+              value={formData.noticePeriod}
+              onChange={handleChange}
+              error={!!errors.noticePeriod}
+              helperText={errors.noticePeriod || 'Enter 0 if you can join immediately'}
+              required
+              placeholder="e.g., 30, 60, 90"
+              inputProps={{ min: 0, max: 365 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarToday />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
 
           {/* Resume Upload */}
           <Grid item xs={12}>

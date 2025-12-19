@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff, Lock, Email } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
+import Logo from '../../components/common/Logo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -59,19 +60,7 @@ export default function LoginPage() {
       <Container maxWidth="sm">
         <Paper elevation={6} sx={{ p: 4, borderRadius: 3 }}>
           <Box sx={{ textAlign: 'center', mb: 4 }}>
-            <Typography
-              variant="h3"
-              component="h1"
-              gutterBottom
-              sx={{
-                fontWeight: 'bold',
-                background: 'linear-gradient(45deg, #0030ce 30%, #3354d9 90%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              Venzo HR
-            </Typography>
+            <Logo width={200} height={70} />
             <Typography variant="h6" color="text.secondary">
               Sign in to access the dashboard
             </Typography>
