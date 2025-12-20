@@ -759,13 +759,27 @@ export default function CandidateTable({
                   {(() => {
                     const suitability = getSuitability(candidate);
                     if (suitability) {
+                      const colorMap = {
+                        success: '#4caf50',
+                        warning: '#ff9800',
+                        error: '#f44336',
+                      };
+                      const color = colorMap[suitability.color] || '#757575';
                       return (
                         <Chip
                           icon={suitability.icon}
                           label={suitability.label}
-                          color={suitability.color}
                           size="small"
-                          sx={{ color: "white" }}
+                          sx={{
+                            backgroundColor: `${color}40`,
+                            color: color,
+                            border: `1px solid ${color}40`,
+                            borderRadius: '5px',
+                            height: '30px',
+                            px: '5px',
+                            fontWeight: 500,
+                            '& .MuiChip-icon': { color: color },
+                          }}
                         />
                       );
                     }
@@ -777,11 +791,29 @@ export default function CandidateTable({
                   })()}
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                    color={candidate.status === 'SHORTLISTED' ? 'success' : candidate.status === 'REJECTED' ? 'error' : 'default'}
-                    size="small"
-                  />
+                  {(() => {
+                    const statusColorMap = {
+                      SHORTLISTED: '#4caf50',
+                      REJECTED: '#f44336',
+                      PENDING: '#757575',
+                    };
+                    const color = statusColorMap[candidate.status] || '#757575';
+                    return (
+                      <Chip
+                        label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                        size="small"
+                        sx={{
+                          backgroundColor: `${color}40`,
+                          color: color,
+                          border: `1px solid ${color}40`,
+                          borderRadius: '5px',
+                          height: '30px',
+                          px: '5px',
+                          fontWeight: 500,
+                        }}
+                      />
+                    );
+                  })()}
                 </TableCell>
                 <TableCell align="center">
                   <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>

@@ -422,11 +422,14 @@ export default function CandidateCardView({
           <Button
             variant="text"
             size="small"
-            startIcon={<Clear fontSize="small" />}
+            startIcon={<Clear sx={{ fontSize: { xs: 14, sm: 18 } }} />}
             onClick={handleClearAllFilters}
             sx={{
-              fontSize: '0.75rem',
+              fontSize: { xs: '0.65rem', sm: '0.75rem' },
               textTransform: 'none',
+              minWidth: { xs: 'auto', sm: 64 },
+              px: { xs: 0.5, sm: 1 },
+              py: { xs: 0.25, sm: 0.5 },
             }}
           >
             Clear All
@@ -438,14 +441,18 @@ export default function CandidateCardView({
           variant="outlined"
           size="small"
           endIcon={
-            <Badge badgeContent={activeFilterCount} color="primary">
-              <FilterList fontSize="small" />
+            <Badge badgeContent={activeFilterCount} color="primary" sx={{ ml: 1 }}>
+              <FilterList sx={{ fontSize: { xs: 16, sm: 20 }, mr: "10px" }} />
             </Badge>
           }
           onClick={() => setDrawerOpen(true)}
           sx={{
             textTransform: 'none',
             fontWeight: 500,
+            fontSize: { xs: '0.7rem', sm: '0.875rem' },
+            px: { xs: 1, sm: 2 },
+            py: { xs: 0.25, sm: 0.5 },
+            minWidth: { xs: 'auto', sm: 64 },
           }}
         >
           Filters
@@ -664,12 +671,16 @@ export default function CandidateCardView({
         </Box>
 
         {/* Drawer Footer - Pinned to Bottom */}
-        <Box sx={{ pt: 3, display: 'flex', gap: 2, borderTop: 1, borderColor: 'divider', mt: 2 }}>
+        <Box sx={{ pt: { xs: 2, sm: 3 }, display: 'flex', gap: { xs: 1, sm: 2 }, borderTop: 1, borderColor: 'divider', mt: 2 }}>
           <Button
             variant="outlined"
             fullWidth
             onClick={handleClearAllFilters}
-            startIcon={<Clear />}
+            startIcon={<Clear sx={{ fontSize: { xs: 16, sm: 20 } }} />}
+            sx={{
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              py: { xs: 0.75, sm: 1 },
+            }}
           >
             Clear All
           </Button>
@@ -677,6 +688,10 @@ export default function CandidateCardView({
             variant="contained"
             fullWidth
             onClick={() => setDrawerOpen(false)}
+            sx={{
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              py: { xs: 0.75, sm: 1 },
+            }}
           >
             Apply
           </Button>
@@ -797,20 +812,54 @@ export default function CandidateCardView({
 
                 {/* Status and Relevance Chips */}
                 <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
-                  <Chip
-                    label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
-                    color={candidate.status === 'SHORTLISTED' ? 'success' : candidate.status === 'REJECTED' ? 'error' : 'default'}
-                    size="small"
-                  />
-                  {suitability && (
-                    <Chip
-                      icon={suitability.icon}
-                      label={suitability.label}
-                      color={suitability.color}
-                      size="small"
-                      sx={{ color: "white" }}
-                    />
-                  )}
+                  {(() => {
+                    const statusColorMap = {
+                      SHORTLISTED: '#4caf50',
+                      REJECTED: '#f44336',
+                      PENDING: '#757575',
+                    };
+                    const color = statusColorMap[candidate.status] || '#757575';
+                    return (
+                      <Chip
+                        label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                        size="small"
+                        sx={{
+                          backgroundColor: `${color}40`,
+                          color: color,
+                          border: `1px solid ${color}40`,
+                          borderRadius: '5px',
+                          height: '30px',
+                          px: '5px',
+                          fontWeight: 500,
+                        }}
+                      />
+                    );
+                  })()}
+                  {suitability && (() => {
+                    const colorMap = {
+                      success: '#4caf50',
+                      warning: '#ff9800',
+                      error: '#f44336',
+                    };
+                    const color = colorMap[suitability.color] || '#757575';
+                    return (
+                      <Chip
+                        icon={suitability.icon}
+                        label={suitability.label}
+                        size="small"
+                        sx={{
+                          backgroundColor: `${color}40`,
+                          color: color,
+                          border: `1px solid ${color}40`,
+                          borderRadius: '5px',
+                          height: '30px',
+                          px: '5px',
+                          fontWeight: 500,
+                          '& .MuiChip-icon': { color: color },
+                        }}
+                      />
+                    );
+                  })()}
                 </Box>
 
                 <Divider sx={{ my: 1 }} />
@@ -1000,15 +1049,32 @@ export default function CandidateCardView({
                     </Box>
                   </Box>
 
-                  {suitability && (
-                    <Chip
-                      icon={suitability.icon}
-                      label={suitability.label}
-                      color={suitability.color}
-                      size="small"
-                      sx={{ mb: 2, color: 'white' }}
-                    />
-                  )}
+                  {suitability && (() => {
+                    const colorMap = {
+                      success: '#4caf50',
+                      warning: '#ff9800',
+                      error: '#f44336',
+                    };
+                    const color = colorMap[suitability.color] || '#757575';
+                    return (
+                      <Chip
+                        icon={suitability.icon}
+                        label={suitability.label}
+                        size="small"
+                        sx={{
+                          mb: 2,
+                          backgroundColor: `${color}40`,
+                          color: color,
+                          border: `1px solid ${color}40`,
+                          borderRadius: '5px',
+                          height: '30px',
+                          px: '5px',
+                          fontWeight: 500,
+                          '& .MuiChip-icon': { color: color },
+                        }}
+                      />
+                    );
+                  })()}
 
                   <Box
                     sx={{

@@ -244,22 +244,41 @@ export default function DashboardPage() {
 
   const StatCard = ({ icon, title, value, color }) => (
     <Card elevation={2}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
+      <CardContent sx={{ p: { xs: 1.5, sm: 2 }, '&:last-child': { pb: { xs: 1.5, sm: 2 } } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              gutterBottom
+              sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' }, lineHeight: 1.2 }}
+            >
               {title}
             </Typography>
-            <Typography variant="h4" fontWeight="bold" sx={{ color }}>
+            <Typography
+              fontWeight="bold"
+              sx={{
+                color,
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2rem' },
+                lineHeight: 1.2,
+              }}
+            >
               {value}
             </Typography>
           </Box>
           <Box
             sx={{
               backgroundColor: `${color}20`,
-              p: 2,
+              p: { xs: 1, sm: 1.5, md: 2 },
               borderRadius: 2,
               color,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              '& .MuiSvgIcon-root': {
+                fontSize: { xs: 24, sm: 32, md: 40 },
+              },
             }}
           >
             {icon}
@@ -323,10 +342,10 @@ export default function DashboardPage() {
       )}
 
       {/* Statistics Cards - 2 per row on mobile (xs=6), 4 per row on desktop */}
-      <Grid container spacing={2} sx={{ mb: 4 }}>
+      <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 4 }}>
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            icon={<People sx={{ fontSize: 40 }} />}
+            icon={<People />}
             title="Total Applications"
             value={stats.total}
             color="#0030ce"
@@ -334,7 +353,7 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            icon={<Star sx={{ fontSize: 40 }} />}
+            icon={<Star />}
             title="Shortlisted"
             value={stats.shortlisted}
             color="#4caf50"
@@ -342,7 +361,7 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            icon={<DateRange sx={{ fontSize: 40 }} />}
+            icon={<DateRange />}
             title="This Week"
             value={stats.thisWeek}
             color="#2196f3"
@@ -350,8 +369,8 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            icon={<TrendingUp sx={{ fontSize: 40 }} />}
-            title="Avg Salary Expectation"
+            icon={<TrendingUp />}
+            title="Avg Salary"
             value={`₹${(stats.avgSalary / 100000).toFixed(1)}L`}
             color="#9c27b0"
           />
