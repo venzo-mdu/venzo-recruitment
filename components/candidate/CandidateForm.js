@@ -300,11 +300,11 @@ export default function CandidateForm({ onSuccess }) {
             />
           </Grid>
 
-          {/* Current Salary */}
+          {/* Current CTC */}
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Current Salary"
+              label="Current CTC"
               name="currentSalary"
               type="text"
               value={displayValues.currentSalary}
@@ -312,7 +312,7 @@ export default function CandidateForm({ onSuccess }) {
               error={!!errors.currentSalary}
               helperText={errors.currentSalary || (formData.currentSalary ? numberToWords(parseFloat(formData.currentSalary)) : '')}
               required
-              placeholder="Enter amount"
+              placeholder="Enter annual CTC"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -323,11 +323,11 @@ export default function CandidateForm({ onSuccess }) {
             />
           </Grid>
 
-          {/* Expected Salary */}
+          {/* Expected CTC */}
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Expected Salary"
+              label="Expected CTC"
               name="expectedSalary"
               type="text"
               value={displayValues.expectedSalary}
@@ -335,7 +335,7 @@ export default function CandidateForm({ onSuccess }) {
               error={!!errors.expectedSalary}
               helperText={errors.expectedSalary || (formData.expectedSalary ? numberToWords(parseFloat(formData.expectedSalary)) : '')}
               required
-              placeholder="Enter amount"
+              placeholder="Enter expected CTC"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -350,7 +350,7 @@ export default function CandidateForm({ onSuccess }) {
           {showSalaryWarning && (
             <Grid item xs={12}>
               <Alert severity="warning" sx={{ mb: 0 }}>
-                <strong>Note:</strong> Your salary expectation is above ₹9,00,000 per annum. Please note that we are looking for candidates with ₹6,00,000 to ₹9,00,000 per annum. Applications with higher expectations may or may not be considered.
+                <strong>Note:</strong> Your CTC expectation is above ₹9,00,000 per annum. Please note that we are looking for candidates with ₹6,00,000 to ₹9,00,000 per annum. Applications with higher expectations may or may not be considered.
               </Alert>
             </Grid>
           )}

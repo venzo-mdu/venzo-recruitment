@@ -2,18 +2,80 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '../../../lib/supabase/server';
 import pdfParse from 'pdf-parse';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Vision-based text extraction using OpenAI's direct PDF support
+async function extractTextWithVision(buffer) {
+  console.log('Using OpenAI Vision API with direct PDF support...');
+
+  try {
+    // Convert buffer to base64
+    const base64Pdf = buffer.toString('base64');
+
+    // Send PDF directly to GPT-4o (OpenAI now supports PDF files natively)
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Extract all text content from this resume PDF. Return only the extracted text, preserving the structure as much as possible. Include all details like name, contact info, work experience, education, skills, certifications, etc.'
+            },
+            {
+              type: 'file',
+              file: {
+                filename: 'resume.pdf',
+                file_data: `data:application/pdf;base64,${base64Pdf}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4000
+    });
+
+    const extractedText = response.choices[0]?.message?.content || '';
+    console.log(`Vision API extracted ${extractedText.length} characters`);
+    return extractedText;
+  } catch (error) {
+    console.error('Vision extraction error details:', error);
+    throw error;
+  }
+}
+
 async function extractTextFromPDF(buffer) {
+  // First try pdf-parse (fast method)
   try {
     const data = await pdfParse(buffer);
-    return data.text;
+    if (data.text && data.text.trim().length >= 50) {
+      console.log(`pdf-parse extracted ${data.text.length} characters`);
+      return { text: data.text, method: 'pdf-parse' };
+    }
+
+    // pdf-parse returned insufficient text, try Vision
+    console.log('pdf-parse extracted insufficient text, falling back to Vision API...');
+    const visionText = await extractTextWithVision(buffer);
+    return { text: visionText, method: 'vision' };
+
   } catch (error) {
-    console.error('PDF parsing error:', error);
-    throw new Error('Failed to parse PDF');
+    console.error('pdf-parse failed:', error.message);
+
+    // Fallback to Vision API
+    try {
+      const visionText = await extractTextWithVision(buffer);
+      return { text: visionText, method: 'vision' };
+    } catch (visionError) {
+      console.error('Vision extraction also failed:', visionError.message);
+      throw new Error('Failed to extract text from PDF using both methods');
+    }
   }
 }
 
@@ -45,8 +107,9 @@ export async function POST(request) {
     const arrayBuffer = await resumeData.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract text from PDF
-    const resumeText = await extractTextFromPDF(buffer);
+    // Extract text from PDF (tries pdf-parse first, falls back to Vision if needed)
+    const { text: resumeText, method } = await extractTextFromPDF(buffer);
+    console.log(`Text extracted using: ${method}`);
 
     if (!resumeText || resumeText.trim().length < 50) {
       return NextResponse.json(
