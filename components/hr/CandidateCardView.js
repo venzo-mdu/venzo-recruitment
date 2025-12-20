@@ -56,6 +56,7 @@ export default function CandidateCardView({
   loading = false,
   onViewDetails,
   onToggleShortlist,
+  onUpdateStatus,
   onDownloadResume,
   onDelete,
 }) {
@@ -137,10 +138,11 @@ export default function CandidateCardView({
     setStatusMenuAnchor(null);
   };
 
-  const handleBulkStatusUpdate = (status) => {
-    selected.forEach(id => {
-      onToggleShortlist(id, status);
-    });
+  const handleBulkStatusUpdate = async (newStatus) => {
+    // Use onUpdateStatus to set status directly (not toggle)
+    for (const id of selected) {
+      await onUpdateStatus(id, newStatus);
+    }
     setSelected([]);
     handleStatusMenuClose();
   };

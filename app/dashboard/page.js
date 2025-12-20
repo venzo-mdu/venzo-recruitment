@@ -173,6 +173,23 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUpdateStatus = async (candidateId, newStatus) => {
+    try {
+      const result = await updateCandidateStatus(candidateId, newStatus);
+      if (result.success) {
+        // Update local state
+        setCandidates(prev =>
+          prev.map(c => c.id === candidateId ? { ...c, status: newStatus } : c)
+        );
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  };
+
   const handleDownloadResume = async (resumePath, candidateName) => {
     try {
       const result = await getResumeUrl(resumePath);
@@ -393,6 +410,7 @@ export default function DashboardPage() {
           loading={loading}
           onViewDetails={handleViewDetails}
           onToggleShortlist={handleToggleShortlist}
+          onUpdateStatus={handleUpdateStatus}
           onDownloadResume={handleDownloadResume}
           onDelete={handleDeleteCandidate}
         />
