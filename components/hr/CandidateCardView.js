@@ -1008,49 +1008,67 @@ export default function CandidateCardView({
         onClose={handleCompareClose}
         maxWidth="lg"
         fullWidth
+        PaperProps={{
+          sx: { maxHeight: '90vh', display: 'flex', flexDirection: 'column' }
+        }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ fontWeight: 'bold', borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
           Compare AI Summaries ({selectedCandidates.length} candidates)
         </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-            {selectedCandidates.map((candidate) => {
-              const suitability = getSuitability(candidate);
-              return (
-                <Box
-                  key={candidate.id}
-                  sx={{
-                    minWidth: 300,
-                    maxWidth: 400,
-                    flex: 1,
-                    border: 1,
-                    borderColor: 'divider',
-                    borderRadius: 2,
-                    p: 2,
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Avatar
-                      sx={{
-                        bgcolor: 'primary.main',
-                        width: 32,
-                        height: 32,
-                        mr: 1,
-                        fontSize: '0.875rem'
-                      }}
-                    >
-                      {getInitials(candidate.full_name)}
-                    </Avatar>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="subtitle1" fontWeight="bold" noWrap>
-                        {candidate.full_name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {candidate.position}
-                      </Typography>
-                    </Box>
-                  </Box>
 
+        {/* Sticky Headers Row - Fixed at top */}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            p: 2,
+            pb: 0,
+            bgcolor: 'background.paper',
+            flexShrink: 0,
+          }}
+        >
+          {selectedCandidates.map((candidate) => {
+            const suitability = getSuitability(candidate);
+            const statusColorMap = {
+              SHORTLISTED: '#4caf50',
+              REJECTED: '#f44336',
+              PENDING: '#757575',
+            };
+            const statusColor = statusColorMap[candidate.status] || '#757575';
+            return (
+              <Box
+                key={`header-${candidate.id}`}
+                sx={{
+                  minWidth: 300,
+                  maxWidth: 400,
+                  flex: 1,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: '8px 8px 0 0',
+                  borderBottom: 0,
+                  p: 1.5,
+                  bgcolor: 'background.paper',
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', lineHeight: 1.3 }}>
+                  {candidate.full_name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>
+                  {candidate.position} • {candidate.experience} years
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  <Chip
+                    label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                    size="small"
+                    sx={{
+                      backgroundColor: `${statusColor}40`,
+                      color: statusColor,
+                      border: `1px solid ${statusColor}40`,
+                      borderRadius: '5px',
+                      height: '24px',
+                      fontWeight: 500,
+                    }}
+                  />
                   {suitability && (() => {
                     const colorMap = {
                       success: '#4caf50',
@@ -1064,63 +1082,73 @@ export default function CandidateCardView({
                         label={suitability.label}
                         size="small"
                         sx={{
-                          mb: 2,
                           backgroundColor: `${color}40`,
                           color: color,
                           border: `1px solid ${color}40`,
                           borderRadius: '5px',
-                          height: '30px',
-                          px: '5px',
+                          height: '24px',
                           fontWeight: 500,
                           '& .MuiChip-icon': { color: color },
                         }}
                       />
                     );
                   })()}
-
-                  <Box
-                    sx={{
-                      maxHeight: 400,
-                      overflowY: 'auto',
-                      bgcolor: 'background.default',
-                      p: 2,
-                      borderRadius: 1,
-                    }}
-                  >
-                    {candidate.ai_summary ? (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          whiteSpace: 'pre-wrap',
-                          fontSize: '0.875rem',
-                          '& strong': {
-                            color: 'primary.main',
-                            fontWeight: 'bold'
-                          }
-                        }}
-                        dangerouslySetInnerHTML={{
-                          __html: candidate.ai_summary
-                            .replace(/^(.*?)(?=Score:)/s, (match) => match.replace(/\n/g, '<br/>'))
-                            .replace(/\n(Strengths?:)/g, '<br/><strong>$1</strong>')
-                            .replace(/\n(Gaps?:)/g, '<br/><strong>$1</strong>')
-                            .replace(/\n(Fit for Venzo:)/g, '<br/><strong>$1</strong>')
-                            .replace(/\n(Proceed:)/g, '<br/><strong>$1</strong>')
-                            .replace(/\n•/g, '<br/>•')
-                            .replace(/Score: ([\d.]+) \/ 10/g, '<br/><strong style="color: #0030ce; font-size: 1.1em;">Score: $1 / 10</strong>')
-                        }}
-                      />
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                        No AI summary available
-                      </Typography>
-                    )}
-                  </Box>
                 </Box>
-              );
-            })}
+              </Box>
+            );
+          })}
+        </Box>
+
+        {/* Scrollable Content Area - All columns scroll together */}
+        <DialogContent sx={{ p: 2, pt: 0, flex: 1, overflow: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, minHeight: '100%' }}>
+            {selectedCandidates.map((candidate) => (
+              <Box
+                key={`content-${candidate.id}`}
+                sx={{
+                  minWidth: 300,
+                  maxWidth: 400,
+                  flex: 1,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: '0 0 8px 8px',
+                  borderTop: 0,
+                  bgcolor: 'background.default',
+                  p: 2,
+                }}
+              >
+                {candidate.ai_summary ? (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      fontSize: '0.85rem',
+                      '& strong': {
+                        color: 'primary.main',
+                        fontWeight: 'bold'
+                      }
+                    }}
+                    dangerouslySetInnerHTML={{
+                      __html: candidate.ai_summary
+                        .replace(/^(.*?)(?=Score:)/s, (match) => match.replace(/\n/g, '<br/>'))
+                        .replace(/\n(Strengths?:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Gaps?:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Fit for Venzo:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Proceed:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n•/g, '<br/>•')
+                        .replace(/Score: ([\d.]+) \/ 10/g, '<br/><strong style="color: #0030ce; font-size: 1.1em;">Score: $1 / 10</strong>')
+                    }}
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                    No AI summary available
+                  </Typography>
+                )}
+              </Box>
+            ))}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>
           <Button onClick={handleCompareClose} variant="contained">
             Close
           </Button>

@@ -28,6 +28,7 @@ import {
   Menu,
   MenuItem,
   Divider as MuiDivider,
+  Avatar,
 } from '@mui/material';
 import {
   Visibility,
@@ -947,64 +948,137 @@ export default function CandidateTable({
         onClose={handleCompareClose}
         maxWidth="lg"
         fullWidth
+        PaperProps={{
+          sx: { maxHeight: '90vh', display: 'flex', flexDirection: 'column' }
+        }}
       >
-        <DialogTitle sx={{ fontWeight: 'bold', borderBottom: 1, borderColor: 'divider' }}>
+        <DialogTitle sx={{ fontWeight: 'bold', borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
           Compare AI Summaries ({selectedCandidates.length} candidates)
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', pb: 2 }}>
-            {selectedCandidates.map((candidate) => (
+
+        {/* Sticky Headers Row - Fixed at top */}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            p: 2,
+            pb: 0,
+            bgcolor: 'background.paper',
+            flexShrink: 0,
+          }}
+        >
+          {selectedCandidates.map((candidate) => {
+            const suitability = getSuitability(candidate);
+            const statusColorMap = {
+              SHORTLISTED: '#4caf50',
+              REJECTED: '#f44336',
+              PENDING: '#757575',
+            };
+            const statusColor = statusColorMap[candidate.status] || '#757575';
+            return (
               <Box
-                key={candidate.id}
+                key={`header-${candidate.id}`}
                 sx={{
                   minWidth: 300,
                   maxWidth: 400,
                   flex: 1,
                   border: 1,
                   borderColor: 'divider',
-                  borderRadius: 2,
+                  borderRadius: '8px 8px 0 0',
+                  borderBottom: 0,
+                  p: 1.5,
+                  bgcolor: 'background.paper',
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main', lineHeight: 1.3 }}>
+                  {candidate.full_name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>
+                  {candidate.position} • {candidate.experience} years
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  <Chip
+                    label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                    size="small"
+                    sx={{
+                      backgroundColor: `${statusColor}40`,
+                      color: statusColor,
+                      border: `1px solid ${statusColor}40`,
+                      borderRadius: '5px',
+                      height: '24px',
+                      fontWeight: 500,
+                    }}
+                  />
+                  {suitability && (() => {
+                    const colorMap = {
+                      success: '#4caf50',
+                      warning: '#ff9800',
+                      error: '#f44336',
+                    };
+                    const color = colorMap[suitability.color] || '#757575';
+                    return (
+                      <Chip
+                        icon={suitability.icon}
+                        label={suitability.label}
+                        size="small"
+                        sx={{
+                          backgroundColor: `${color}40`,
+                          color: color,
+                          border: `1px solid ${color}40`,
+                          borderRadius: '5px',
+                          height: '24px',
+                          fontWeight: 500,
+                          '& .MuiChip-icon': { color: color },
+                        }}
+                      />
+                    );
+                  })()}
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
+
+        {/* Scrollable Content Area - All columns scroll together */}
+        <DialogContent sx={{ p: 2, pt: 0, flex: 1, overflow: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, minHeight: '100%' }}>
+            {selectedCandidates.map((candidate) => (
+              <Box
+                key={`content-${candidate.id}`}
+                sx={{
+                  minWidth: 300,
+                  maxWidth: 400,
+                  flex: 1,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: '0 0 8px 8px',
+                  borderTop: 0,
+                  bgcolor: 'background.default',
                   p: 2,
                 }}
               >
-                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                  {candidate.full_name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                  {candidate.position} • {candidate.experience} years
-                </Typography>
-                <MuiDivider sx={{ my: 2 }} />
                 {candidate.ai_summary ? (
-                  <Box
+                  <Typography
+                    variant="body2"
                     sx={{
-                      maxHeight: 400,
-                      overflowY: 'auto',
-                      backgroundColor: 'background.default',
-                      p: 2,
-                      borderRadius: 1,
+                      whiteSpace: 'pre-wrap',
+                      fontSize: '0.85rem',
+                      '& strong': {
+                        color: 'primary.main',
+                        fontWeight: 'bold'
+                      }
                     }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        whiteSpace: 'pre-wrap',
-                        fontSize: '0.85rem',
-                        '& strong': {
-                          color: 'primary.main',
-                          fontWeight: 'bold'
-                        }
-                      }}
-                      dangerouslySetInnerHTML={{
-                        __html: candidate.ai_summary
-                          .replace(/^(.*?)(?=Score:)/s, (match) => match.replace(/\n/g, '<br/>'))
-                          .replace(/\n(Strengths?:)/g, '<br/><strong>$1</strong>')
-                          .replace(/\n(Gaps?:)/g, '<br/><strong>$1</strong>')
-                          .replace(/\n(Fit for Venzo:)/g, '<br/><strong>$1</strong>')
-                          .replace(/\n(➡️ Proceed\?)/g, '<br/><strong>$1</strong>')
-                          .replace(/\n•/g, '<br/>•')
-                          .replace(/Score: ([\d.]+) \/ 10/g, '<br/><strong style="color: #0030ce; font-size: 1.1em;">Score: $1 / 10</strong>')
-                      }}
-                    />
-                  </Box>
+                    dangerouslySetInnerHTML={{
+                      __html: candidate.ai_summary
+                        .replace(/^(.*?)(?=Score:)/s, (match) => match.replace(/\n/g, '<br/>'))
+                        .replace(/\n(Strengths?:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Gaps?:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Fit for Venzo:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Proceed:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n•/g, '<br/>•')
+                        .replace(/Score: ([\d.]+) \/ 10/g, '<br/><strong style="color: #0030ce; font-size: 1.1em;">Score: $1 / 10</strong>')
+                    }}
+                  />
                 ) : (
                   <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                     AI summary not yet generated
@@ -1014,7 +1088,7 @@ export default function CandidateTable({
             ))}
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 2, borderTop: 1, borderColor: 'divider', flexShrink: 0 }}>
           <Button onClick={handleCompareClose} variant="contained">
             Close
           </Button>
