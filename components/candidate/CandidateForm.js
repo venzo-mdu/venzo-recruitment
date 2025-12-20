@@ -222,11 +222,29 @@ export default function CandidateForm({ onSuccess }) {
     }
   };
 
+  // Light theme colors
+  const theme = {
+    paper: '#ffffff',
+    inputBorder: 'rgba(0, 0, 0, 0.23)',
+    inputBorderHover: 'rgba(0, 0, 0, 0.87)',
+    inputBorderFocus: 'rgba(7, 56, 175, 1)',
+    text: 'rgba(0, 0, 0, 0.87)',
+    textSecondary: 'rgba(0, 0, 0, 0.6)',
+    accent: 'rgba(7, 56, 175, 1)',
+    icon: 'rgba(7, 56, 175, 0.8)',
+  };
+
   return (
-    <Paper elevation={3} sx={{ p: 4, maxWidth: 800, mx: 'auto' }}>
-      {/* <Typography variant="h4" gutterBottom sx={{ mb: 3, color: 'primary.main', fontWeight: 'bold' }}>
-        Apply to Venzo
-      </Typography> */}
+    <Paper
+      elevation={3}
+      sx={{
+        p: 4,
+        maxWidth: 600,
+        mx: 'auto',
+        backgroundColor: theme.paper,
+        borderRadius: 3,
+      }}
+    >
 
       {submitError && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -250,7 +268,7 @@ export default function CandidateForm({ onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Person />
+                    <Person sx={{ color: theme.icon }} />
                   </InputAdornment>
                 ),
               }}
@@ -272,7 +290,7 @@ export default function CandidateForm({ onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email />
+                    <Email sx={{ color: theme.icon }} />
                   </InputAdornment>
                 ),
               }}
@@ -293,7 +311,7 @@ export default function CandidateForm({ onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Phone />
+                    <Phone sx={{ color: theme.icon }} />
                   </InputAdornment>
                 ),
               }}
@@ -316,7 +334,7 @@ export default function CandidateForm({ onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CurrencyRupee />
+                    <CurrencyRupee sx={{ color: theme.icon }} />
                   </InputAdornment>
                 ),
               }}
@@ -339,7 +357,7 @@ export default function CandidateForm({ onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CurrencyRupee />
+                    <CurrencyRupee sx={{ color: theme.icon }} />
                   </InputAdornment>
                 ),
               }}
@@ -372,7 +390,7 @@ export default function CandidateForm({ onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CalendarToday />
+                    <CalendarToday sx={{ color: theme.icon }} />
                   </InputAdornment>
                 ),
               }}
@@ -386,8 +404,15 @@ export default function CandidateForm({ onSuccess }) {
               component="label"
               fullWidth
               startIcon={<CloudUpload />}
-              sx={{ py: 2 }}
-              color={errors.resume ? 'error' : 'primary'}
+              sx={{
+                py: 2,
+                borderColor: errors.resume ? 'error.main' : theme.accent,
+                color: errors.resume ? 'error.main' : theme.accent,
+                '&:hover': {
+                  borderColor: errors.resume ? 'error.main' : theme.accent,
+                  backgroundColor: 'rgba(7, 56, 175, 0.08)',
+                },
+              }}
             >
               {resume ? resume.name : 'Upload Resume (PDF only)'}
               <input
@@ -412,11 +437,23 @@ export default function CandidateForm({ onSuccess }) {
               fullWidth
               size="large"
               disabled={loading}
-              sx={{ py: 1.5 }}
+              sx={{
+                py: 1.5,
+                backgroundColor: theme.accent,
+                color: '#ffffff',
+                fontWeight: 'bold',
+                '&:hover': {
+                  backgroundColor: 'rgba(7, 70, 200, 1)',
+                },
+                '&:disabled': {
+                  backgroundColor: 'rgba(7, 56, 175, 0.5)',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                },
+              }}
             >
               {loading ? (
                 <>
-                  <CircularProgress size={24} sx={{ mr: 1 }} color="inherit" />
+                  <CircularProgress size={24} sx={{ mr: 1, color: '#ffffff' }} />
                   Submitting...
                 </>
               ) : (

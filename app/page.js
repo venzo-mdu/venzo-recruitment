@@ -22,29 +22,22 @@ export default function HomePage() {
     <Box
       sx={{
         minHeight: '100vh',
-        backgroundColor: '#e3ebfb',
+        background: `
+          radial-gradient(ellipse at 0% 0%, rgba(8, 8, 42, 1) 0%, transparent 50%),
+          radial-gradient(ellipse at 100% 40%, rgba(7, 56, 175, 1) 0%, transparent 40%),
+          radial-gradient(ellipse at 100% 100%, rgba(8, 8, 42, 1) 0%, transparent 50%),
+          radial-gradient(ellipse at 0% 100%, rgba(7, 56, 175, 1) 0%, transparent 50%),
+          rgba(8, 8, 42, 1)
+        `,
         py: 6,
       }}
     >
       <Container maxWidth="md">
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box sx={{ mb: 3 }}>
-            <Logo width={200} height={70} />
+          <Box sx={{ mb: 0 }}>
+            <Logo width={200} height={70} variant="white" />
           </Box>
-          {/* <Typography
-            variant="h2"
-            component="h1"
-            gutterBottom
-            sx={{
-              fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #0030ce 30%, #3354d9 90%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Join Venzo
-          </Typography> */}
-          <Typography variant="h6" color="text.secondary">
+          <Typography variant="h6" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
             Start your journey with us. Fill out the application form below.
           </Typography>
         </Box>
