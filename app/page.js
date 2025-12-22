@@ -118,7 +118,7 @@ export default function HomePage() {
                   color: 'white',
                 }}
               >
-                You'll fit right in if you
+                You&apos;ll fit right in if you
               </Typography>
 
               {checklistItems.map((item, index) => (
@@ -161,7 +161,7 @@ export default function HomePage() {
                 display: { xs: 'none', sm: 'block' },
               }}
             >
-              And of course, know LC's, Guarantees, Collections, SWIFT in your sleep.
+              And of course, know LCs, Guarantees, Collections, SWIFT in your sleep.
             </Typography>
 
             {/* Bottom Info Card */}
