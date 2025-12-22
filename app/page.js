@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Script from 'next/script';
 import { Box, Container, Typography, Grid, Paper } from '@mui/material';
 import { CheckBox as CheckBoxIcon } from '@mui/icons-material';
 import CandidateForm from '../components/candidate/CandidateForm';
@@ -26,13 +27,33 @@ export default function HomePage() {
   ];
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        backgroundColor: '#e3ebfb',
-      }}
-    >
-      <Grid container sx={{ minHeight: '100vh' }}>
+    <>
+      {/* Google Tag Manager - Only on candidate form page */}
+      <Script id="gtm-script" strategy="afterInteractive">
+        {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-TF36G24R');`}
+      </Script>
+
+      <Box
+        sx={{
+          minHeight: '100vh',
+          backgroundColor: '#e3ebfb',
+        }}
+      >
+        {/* Google Tag Manager (noscript) */}
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-TF36G24R"
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
+          />
+        </noscript>
+
+        <Grid container sx={{ minHeight: '100vh' }}>
         {/* Left Pane - Job Info */}
         <Grid
           item
@@ -235,9 +256,10 @@ export default function HomePage() {
             <CandidateForm onSuccess={handleSuccess} />
           </Container>
         </Grid>
-      </Grid>
+        </Grid>
 
-      <SuccessDialog open={showSuccessDialog} onClose={handleCloseDialog} />
-    </Box>
+        <SuccessDialog open={showSuccessDialog} onClose={handleCloseDialog} />
+      </Box>
+    </>
   );
 }
