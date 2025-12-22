@@ -47,12 +47,12 @@ export default function HomePage() {
             color: 'white',
             display: 'flex',
             flexDirection: 'column',
-            p: { xs: 3, sm: 4, md: 5 },
+            p: { xs: 2.5, sm: 4, md: 5 },
           }}
         >
           <Box>
             {/* Logo */}
-            <Box sx={{ mb: { xs: 3, md: 4 } }}>
+            <Box sx={{ mb: { xs: 2, md: 4 } }}>
               <Logo width={140} height={50} variant="white" />
             </Box>
 
@@ -62,9 +62,9 @@ export default function HomePage() {
               component="h1"
               sx={{
                 fontWeight: 800,
-                fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.5rem' },
+                fontSize: { xs: '1.5rem', sm: '2.25rem', md: '2.5rem' },
                 lineHeight: 1.1,
-                mb: 1,
+                mb: { xs: 0.5, md: 1 },
                 textTransform: 'uppercase',
                 letterSpacing: '-0.02em',
               }}
@@ -76,9 +76,9 @@ export default function HomePage() {
               component="h1"
               sx={{
                 fontWeight: 800,
-                fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.5rem' },
+                fontSize: { xs: '1.5rem', sm: '2.25rem', md: '2.5rem' },
                 lineHeight: 1.1,
-                mb: 2,
+                mb: { xs: 1.5, md: 2 },
                 textTransform: 'uppercase',
                 letterSpacing: '-0.02em',
               }}
@@ -91,15 +91,15 @@ export default function HomePage() {
               variant="h6"
               sx={{
                 fontWeight: 400,
-                fontSize: { xs: '0.95rem', sm: '1.1rem' },
-                mb: { xs: 3, md: 4 },
+                fontSize: { xs: '0.85rem', sm: '1.1rem' },
+                mb: { xs: 2, md: 4 },
                 opacity: 0.9,
               }}
             >
               Move from Ops to TradeTech: QA → Implementation Consulting
             </Typography>
 
-            {/* You'll fit right in section */}
+            {/* You'll fit right in section - Hidden on mobile */}
             <Paper
               elevation={0}
               sx={{
@@ -107,6 +107,7 @@ export default function HomePage() {
                 borderRadius: 2,
                 p: 2,
                 mb: 3,
+                display: { xs: 'none', sm: 'block' },
               }}
             >
               <Typography
@@ -150,13 +151,14 @@ export default function HomePage() {
               ))}
             </Paper>
 
-            {/* Additional note */}
+            {/* Additional note - Hidden on mobile */}
             <Typography
               variant="body1"
               sx={{
                 fontSize: { xs: '0.9rem', sm: '1rem' },
                 mb: { xs: 3, md: 4 },
                 opacity: 0.9,
+                display: { xs: 'none', sm: 'block' },
               }}
             >
               And of course, know LC's, Guarantees, Collections, SWIFT in your sleep.
@@ -168,7 +170,7 @@ export default function HomePage() {
               sx={{
                 backgroundColor: '#0030ce',
                 borderRadius: 2,
-                p: { xs: 2, sm: 2.5 },
+                p: { xs: 1.5, sm: 2.5 },
                 mt: 'auto',
               }}
             >
@@ -176,8 +178,8 @@ export default function HomePage() {
                 variant="body1"
                 sx={{
                   color: 'white',
-                  mb: 1.5,
-                  fontSize: { xs: '0.9rem', sm: '1rem' },
+                  mb: { xs: 0.5, sm: 1.5 },
+                  fontSize: { xs: '0.8rem', sm: '1rem' },
                 }}
               >
                 Work on Trade Finance, SCF & TBML platforms with leading banks and fintechs.
@@ -187,7 +189,7 @@ export default function HomePage() {
                 sx={{
                   color: 'white',
                   fontWeight: 600,
-                  fontSize: { xs: '1rem', sm: '1.1rem' },
+                  fontSize: { xs: '0.9rem', sm: '1.1rem' },
                 }}
               >
                 Chennai/Hybrid | ₹6–9 LPA | 15 openings
@@ -210,10 +212,6 @@ export default function HomePage() {
           }}
         >
           <Container maxWidth="sm" sx={{ py: { xs: 2, md: 0 } }}>
-            <Box sx={{ textAlign: 'center', mb: 3, display: { xs: 'block', md: 'none' } }}>
-              <Logo width={160} height={56} />
-            </Box>
-
             <Typography
               variant="h5"
               component="h2"
