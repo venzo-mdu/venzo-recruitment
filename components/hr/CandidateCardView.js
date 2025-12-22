@@ -914,7 +914,15 @@ export default function CandidateCardView({
                       {formatCurrency(candidate.expected_salary)}
                     </Typography>
                   </Box>
-                  <Box sx={{ gridColumn: '1 / -1' }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
+                      Notice Period
+                    </Typography>
+                    <Typography variant="body2" fontWeight="500" sx={{ fontSize: '0.8125rem' }}>
+                      {candidate.notice_period || '-'}
+                    </Typography>
+                  </Box>
+                  <Box>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.7rem' }}>
                       Applied On
                     </Typography>

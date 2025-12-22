@@ -662,6 +662,9 @@ export default function CandidateTable({
                   />
                 </Box>
               </TableCell>
+              <TableCell sx={{ color: 'white' }}>
+                Notice Period
+              </TableCell>
               <TableCell sx={{ color: 'white', fontWeight: isFilterActive('created_at') ? 'bold' : 'normal' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <TableSortLabel
@@ -748,6 +751,7 @@ export default function CandidateTable({
                 <TableCell>{candidate.position}</TableCell>
                 <TableCell>{candidate.experience} years</TableCell>
                 <TableCell>{formatCurrency(candidate.expected_salary)}</TableCell>
+                <TableCell>{candidate.notice_period || '-'}</TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
