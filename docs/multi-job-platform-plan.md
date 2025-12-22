@@ -26,7 +26,7 @@ CREATE TABLE public.jobs (
   salary_min numeric,
   salary_max numeric,
   -- Note: Warning displays if expected salary > salary_max
-  -- Message format: "Your CTC expectation is above ₹X per annum. Please note that we are looking for candidates with ₹Y to ₹X per annum."
+  -- Message: "Your CTC expectation is above ₹{salary_max} per annum. Please note that we are looking for candidates with ₹{salary_min} to ₹{salary_max} per annum. Applications with higher expectations may or may not be considered."
 
   -- Status
   is_active boolean DEFAULT true,
@@ -193,7 +193,7 @@ FOR ALL USING (auth.role() = 'authenticated');
 7. **Update CandidateForm.js**:
    - Accept `job` prop with job details (including `salary_min`, `salary_max`)
    - Show warning if expected salary > `salary_max`
-   - Warning message: "Your CTC expectation is above ₹{salary_max} per annum. Please note that we are looking for candidates with ₹{salary_min} to ₹{salary_max} per annum."
+   - Warning message: "Your CTC expectation is above ₹{salary_max formatted} per annum. Please note that we are looking for candidates with ₹{salary_min formatted} to ₹{salary_max formatted} per annum. Applications with higher expectations may or may not be considered."
    - Include `job_id` in form submission
 
 8. **Update `/api/submit-candidate/route.js`**:
