@@ -126,7 +126,7 @@ This is an automated message. Please do not reply to this email.
               </div>
               <div class="info-row">
                 <span class="info-label">Applied On:</span>
-                <span>${new Date().toLocaleString()}</span>
+                <span>${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST</span>
               </div>
               <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" class="button" style="color: white;">View in Dashboard</a>
             </div>
@@ -139,7 +139,7 @@ This is an automated message. Please do not reply to this email.
 Candidate Details:
 Name: ${candidateName}
 Email: ${candidateEmail}
-Applied On: ${new Date().toLocaleString()}
+Applied On: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })} IST
 
 View in Dashboard: ${process.env.NEXT_PUBLIC_APP_URL}/dashboard`);
 
