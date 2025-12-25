@@ -28,6 +28,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  TablePagination,
 } from '@mui/material';
 import {
   Visibility,
@@ -37,12 +38,9 @@ import {
   Delete,
   Email,
   Phone,
-  Work,
-  CalendarToday,
   CheckCircle,
   Warning,
   Cancel,
-  CurrencyRupee,
   Clear,
   FilterList,
   Close,
@@ -50,6 +48,7 @@ import {
   Compare,
 } from '@mui/icons-material';
 import { formatCurrency, formatDate } from '../../lib/utils/validation';
+import { getStatusOptions, getStatusDisplay } from '../../lib/constants/statuses';
 
 export default function CandidateCardView({
   candidates,
@@ -60,6 +59,10 @@ export default function CandidateCardView({
   onDownloadResume,
   onDelete,
 }) {
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(8);
+
   // Filter state
   const [filters, setFilters] = useState({
     experience: {},
@@ -107,6 +110,17 @@ export default function CandidateCardView({
       status: {},
       relevance: {},
     });
+    setPage(0);
+  };
+
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   // Selection handlers
@@ -211,7 +225,7 @@ export default function CandidateCardView({
     }
 
     // Status filter
-    if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < 3) {
+    if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < getStatusOptions().length) {
       count++;
     }
 
@@ -253,7 +267,7 @@ export default function CandidateCardView({
       }
 
       // Status filter (checkbox)
-      if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < 3) {
+      if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < getStatusOptions().length) {
         if (!filters.status.selected.includes(candidate.status)) {
           return false;
         }
@@ -271,6 +285,12 @@ export default function CandidateCardView({
       return true;
     });
   }, [candidates, filters, experienceRange, salaryRange]);
+
+  // Paginated candidates
+  const paginatedCandidates = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    return filteredCandidates.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredCandidates, page, rowsPerPage]);
 
   const getInitials = (name) => {
     return name
@@ -384,9 +404,9 @@ export default function CandidateCardView({
         <Box sx={{ flex: 1 }} />
 
         {/* Right Side: Active Filter Chips */}
-        {filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < 3 && (
+        {filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < getStatusOptions().length && (
           <Chip
-            label={`Status: ${filters.status.selected.map(s => s === 'SHORTLISTED' ? 'Shortlisted' : s === 'REJECTED' ? 'Rejected' : 'Pending').join(', ')}`}
+            label={`Status: ${filters.status.selected.map(s => getStatusDisplay(s).label).join(', ')}`}
             size="small"
             onDelete={() => handleFilterChange('status', {})}
             sx={{ fontSize: '0.75rem', height: '24px' }}
@@ -494,11 +514,7 @@ export default function CandidateCardView({
               Status
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-              {[
-                { value: 'PENDING', label: 'Pending' },
-                { value: 'SHORTLISTED', label: 'Shortlisted' },
-                { value: 'REJECTED', label: 'Rejected' }
-              ].map((option) => (
+              {getStatusOptions().map((option) => (
                 <FormControlLabel
                   key={option.value}
                   control={
@@ -515,7 +531,19 @@ export default function CandidateCardView({
                       size="small"
                     />
                   }
-                  label={<Typography variant="body2">{option.label}</Typography>}
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: option.color,
+                        }}
+                      />
+                      <Typography variant="body2">{option.label}</Typography>
+                    </Box>
+                  }
                   sx={{ ml: 0 }}
                 />
               ))}
@@ -730,7 +758,7 @@ export default function CandidateCardView({
       {/* Cards Grid */}
       {filteredCandidates.length > 0 && (
         <Grid container spacing={2}>
-          {filteredCandidates.map((candidate) => {
+          {paginatedCandidates.map((candidate) => {
         const suitability = getSuitability(candidate);
 
         return (
@@ -815,20 +843,15 @@ export default function CandidateCardView({
                 {/* Status and Relevance Chips */}
                 <Box sx={{ display: 'flex', gap: 0.5, mb: 1, flexWrap: 'wrap' }}>
                   {(() => {
-                    const statusColorMap = {
-                      SHORTLISTED: '#4caf50',
-                      REJECTED: '#f44336',
-                      PENDING: '#757575',
-                    };
-                    const color = statusColorMap[candidate.status] || '#757575';
+                    const statusConfig = getStatusDisplay(candidate.status);
                     return (
                       <Chip
-                        label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                        label={statusConfig.label}
                         size="small"
                         sx={{
-                          backgroundColor: `${color}40`,
-                          color: color,
-                          border: `1px solid ${color}40`,
+                          backgroundColor: statusConfig.bgColor,
+                          color: statusConfig.color,
+                          border: `1px solid ${statusConfig.color}40`,
                           borderRadius: '5px',
                           height: '30px',
                           px: '5px',
@@ -990,7 +1013,21 @@ export default function CandidateCardView({
           </Grid>
         );
       })}
-    </Grid>
+        </Grid>
+      )}
+
+      {/* Pagination */}
+      {filteredCandidates.length > 0 && (
+        <TablePagination
+          component="div"
+          count={filteredCandidates.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[8, 16, 24, 48]}
+          sx={{ mt: 2 }}
+        />
       )}
 
       {/* Status Update Menu */}
@@ -999,15 +1036,20 @@ export default function CandidateCardView({
         open={Boolean(statusMenuAnchor)}
         onClose={handleStatusMenuClose}
       >
-        <MenuItem onClick={() => handleBulkStatusUpdate('PENDING')}>
-          Mark as Pending
-        </MenuItem>
-        <MenuItem onClick={() => handleBulkStatusUpdate('SHORTLISTED')}>
-          Shortlist
-        </MenuItem>
-        <MenuItem onClick={() => handleBulkStatusUpdate('REJECTED')}>
-          Reject
-        </MenuItem>
+        {getStatusOptions().map((status) => (
+          <MenuItem key={status.value} onClick={() => handleBulkStatusUpdate(status.value)}>
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: status.color,
+                mr: 1.5,
+              }}
+            />
+            {status.label}
+          </MenuItem>
+        ))}
       </Menu>
 
       {/* Compare AI Dialog */}
@@ -1037,12 +1079,7 @@ export default function CandidateCardView({
         >
           {selectedCandidates.map((candidate) => {
             const suitability = getSuitability(candidate);
-            const statusColorMap = {
-              SHORTLISTED: '#4caf50',
-              REJECTED: '#f44336',
-              PENDING: '#757575',
-            };
-            const statusColor = statusColorMap[candidate.status] || '#757575';
+            const statusConfig = getStatusDisplay(candidate.status);
             return (
               <Box
                 key={`header-${candidate.id}`}
@@ -1066,12 +1103,12 @@ export default function CandidateCardView({
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                   <Chip
-                    label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                    label={statusConfig.label}
                     size="small"
                     sx={{
-                      backgroundColor: `${statusColor}40`,
-                      color: statusColor,
-                      border: `1px solid ${statusColor}40`,
+                      backgroundColor: statusConfig.bgColor,
+                      color: statusConfig.color,
+                      border: `1px solid ${statusConfig.color}40`,
                       borderRadius: '5px',
                       height: '24px',
                       fontWeight: 500,

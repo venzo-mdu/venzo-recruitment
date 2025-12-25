@@ -47,12 +47,14 @@ import {
 } from '@mui/icons-material';
 import { formatCurrency, formatDate } from '../../lib/utils/validation';
 import ColumnFilterMenu from './ColumnFilterMenu';
+import { getStatusOptions, getStatusDisplay } from '../../lib/constants/statuses';
 
 export default function CandidateTable({
   candidates,
   loading,
   onViewDetails,
   onToggleShortlist,
+  onUpdateStatus,
   onDownloadResume,
   onDelete,
 }) {
@@ -147,7 +149,7 @@ export default function CandidateTable({
       if (columnName === 'full_name') return filter.selected.length > 0 && filter.selected.length < uniqueNames.length;
       if (columnName === 'position') return filter.selected.length > 0 && filter.selected.length < uniquePositions.length;
       if (columnName === 'relevance') return filter.selected.length > 0 && filter.selected.length < 4;
-      if (columnName === 'status') return filter.selected.length > 0 && filter.selected.length < 3;
+      if (columnName === 'status') return filter.selected.length > 0 && filter.selected.length < getStatusOptions().length;
     }
 
     // For slider filters
@@ -196,10 +198,13 @@ export default function CandidateTable({
     setStatusMenuAnchor(null);
   };
 
-  const handleBulkStatusUpdate = (status) => {
-    selected.forEach(id => {
-      onToggleShortlist(id, status);
-    });
+  const handleBulkStatusUpdate = async (newStatus) => {
+    // Use onUpdateStatus to set status directly (not toggle)
+    for (const id of selected) {
+      if (onUpdateStatus) {
+        await onUpdateStatus(id, newStatus);
+      }
+    }
     setSelected([]);
     handleStatusMenuClose();
   };
@@ -296,7 +301,7 @@ export default function CandidateTable({
     if (filters.relevance.selected && filters.relevance.selected.length > 0 && filters.relevance.selected.length < 4) return true;
 
     // Status filter - active if not all items are selected
-    if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < 3) return true;
+    if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < getStatusOptions().length) return true;
 
     return false;
   }, [filters, uniqueNames.length, uniquePositions.length, experienceRange, salaryRange]);
@@ -369,7 +374,7 @@ export default function CandidateTable({
       }
 
       // Status filter (checkbox)
-      if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < 3) {
+      if (filters.status.selected && filters.status.selected.length > 0 && filters.status.selected.length < getStatusOptions().length) {
         if (!filters.status.selected.includes(candidate.status)) {
           return false;
         }
@@ -482,18 +487,20 @@ export default function CandidateTable({
             open={Boolean(statusMenuAnchor)}
             onClose={handleStatusMenuClose}
           >
-            <MenuItem onClick={() => handleBulkStatusUpdate('PENDING')}>
-              {/* <CheckCircle fontSize="small" sx={{ mr: 1, color: 'default' }} /> */}
-              Mark as Pending
-            </MenuItem>
-            <MenuItem onClick={() => handleBulkStatusUpdate('SHORTLISTED')}>
-              {/* <Star fontSize="small" sx={{ mr: 1, color: 'success.main' }} /> */}
-              Shortlist
-            </MenuItem>
-            <MenuItem onClick={() => handleBulkStatusUpdate('REJECTED')}>
-              {/* <Cancel fontSize="small" sx={{ mr: 1, color: 'error.main' }} /> */}
-              Reject
-            </MenuItem>
+            {getStatusOptions().map((status) => (
+              <MenuItem key={status.value} onClick={() => handleBulkStatusUpdate(status.value)}>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    backgroundColor: status.color,
+                    mr: 1.5,
+                  }}
+                />
+                {status.label}
+              </MenuItem>
+            ))}
           </Menu>
 
           <Button
@@ -715,11 +722,7 @@ export default function CandidateTable({
                     currentFilter={filters.status}
                     onFilterChange={(value) => handleFilterChange('status', value)}
                     iconColor="white"
-                    options={[
-                      { value: 'PENDING', label: 'Pending' },
-                      { value: 'SHORTLISTED', label: 'Shortlisted' },
-                      { value: 'REJECTED', label: 'Rejected' }
-                    ]}
+                    options={getStatusOptions().map(s => ({ value: s.value, label: s.label }))}
                   />
                 </Box>
               </TableCell>
@@ -797,20 +800,15 @@ export default function CandidateTable({
                 </TableCell>
                 <TableCell>
                   {(() => {
-                    const statusColorMap = {
-                      SHORTLISTED: '#4caf50',
-                      REJECTED: '#f44336',
-                      PENDING: '#757575',
-                    };
-                    const color = statusColorMap[candidate.status] || '#757575';
+                    const statusConfig = getStatusDisplay(candidate.status);
                     return (
                       <Chip
-                        label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                        label={statusConfig.label}
                         size="small"
                         sx={{
-                          backgroundColor: `${color}40`,
-                          color: color,
-                          border: `1px solid ${color}40`,
+                          backgroundColor: statusConfig.bgColor,
+                          color: statusConfig.color,
+                          border: `1px solid ${statusConfig.color}40`,
                           borderRadius: '5px',
                           height: '30px',
                           px: '5px',
@@ -973,12 +971,7 @@ export default function CandidateTable({
         >
           {selectedCandidates.map((candidate) => {
             const suitability = getSuitability(candidate);
-            const statusColorMap = {
-              SHORTLISTED: '#4caf50',
-              REJECTED: '#f44336',
-              PENDING: '#757575',
-            };
-            const statusColor = statusColorMap[candidate.status] || '#757575';
+            const statusConfig = getStatusDisplay(candidate.status);
             return (
               <Box
                 key={`header-${candidate.id}`}
@@ -1002,12 +995,12 @@ export default function CandidateTable({
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                   <Chip
-                    label={candidate.status === 'SHORTLISTED' ? 'Shortlisted' : candidate.status === 'REJECTED' ? 'Rejected' : 'Pending'}
+                    label={statusConfig.label}
                     size="small"
                     sx={{
-                      backgroundColor: `${statusColor}40`,
-                      color: statusColor,
-                      border: `1px solid ${statusColor}40`,
+                      backgroundColor: statusConfig.bgColor,
+                      color: statusConfig.color,
+                      border: `1px solid ${statusConfig.color}40`,
                       borderRadius: '5px',
                       height: '24px',
                       fontWeight: 500,

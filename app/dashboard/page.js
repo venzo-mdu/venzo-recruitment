@@ -248,15 +248,15 @@ export default function DashboardPage() {
   // Calculate statistics
   const stats = {
     total: candidates.length,
-    shortlisted: candidates.filter(c => c.status === 'SHORTLISTED').length,
+    inProcess: candidates.filter(c =>
+      ['UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'INTERVIEWED', 'OFFER_EXTENDED'].includes(c.status)
+    ).length,
     thisWeek: candidates.filter(c => {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
       return new Date(c.created_at) >= weekAgo;
     }).length,
-    avgSalary: candidates.length > 0
-      ? Math.round(candidates.reduce((sum, c) => sum + c.expected_salary, 0) / candidates.length)
-      : 0,
+    hired: candidates.filter(c => c.status === 'HIRED').length,
   };
 
   const StatCard = ({ icon, title, value, color }) => (
@@ -370,10 +370,10 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            icon={<Star />}
-            title="Shortlisted"
-            value={stats.shortlisted}
-            color="#4caf50"
+            icon={<TrendingUp />}
+            title="In Process"
+            value={stats.inProcess}
+            color="#ff9800"
           />
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
@@ -386,10 +386,10 @@ export default function DashboardPage() {
         </Grid>
         <Grid item xs={6} sm={6} md={3}>
           <StatCard
-            icon={<TrendingUp />}
-            title="Avg Salary"
-            value={`₹${(stats.avgSalary / 100000).toFixed(1)}L`}
-            color="#9c27b0"
+            icon={<Star />}
+            title="Hired"
+            value={stats.hired}
+            color="#4caf50"
           />
         </Grid>
       </Grid>
@@ -401,6 +401,7 @@ export default function DashboardPage() {
           loading={loading}
           onViewDetails={handleViewDetails}
           onToggleShortlist={handleToggleShortlist}
+          onUpdateStatus={handleUpdateStatus}
           onDownloadResume={handleDownloadResume}
           onDelete={handleDeleteCandidate}
         />
@@ -421,8 +422,15 @@ export default function DashboardPage() {
         candidate={selectedCandidate}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        onToggleShortlist={handleToggleShortlist}
-        onReject={handleRejectCandidate}
+        onStatusChange={handleUpdateStatus}
+        onRefresh={() => {
+          loadCandidates();
+          // Update selected candidate with latest data
+          if (selectedCandidate) {
+            const updated = candidates.find(c => c.id === selectedCandidate.id);
+            if (updated) setSelectedCandidate(updated);
+          }
+        }}
       />
 
       {/* Snackbar for notifications */}
