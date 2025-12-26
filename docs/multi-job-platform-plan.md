@@ -5,6 +5,74 @@ Transform the current trade-finance-specific single-job recruitment app into a f
 
 ---
 
+## Already Implemented Features
+
+### Comments/Feedback System (Completed)
+
+The application already has a full comments/feedback system with the following features:
+
+**Database Table: `candidate_comments`**
+```sql
+CREATE TABLE public.candidate_comments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  candidate_id uuid NOT NULL REFERENCES public.candidates(id) ON DELETE CASCADE,
+  comment text NOT NULL,
+  author_name text DEFAULT 'HR',
+  author_email text,
+  status_from text,           -- Previous status (for status change tracking)
+  status_to text,             -- New status (for status change tracking)
+  is_status_change boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT candidate_comments_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX idx_candidate_comments_candidate_id ON public.candidate_comments(candidate_id);
+```
+
+**API Routes:**
+- `GET /api/comments?candidateId=xxx` - Get all comments for a candidate
+- `POST /api/comments` - Add a new comment (with optional status change tracking)
+- `PUT /api/comments/[id]` - Update a comment
+- `DELETE /api/comments/[id]` - Delete a comment
+
+**Features:**
+- Comments displayed in CandidateDetail modal
+- Edit and delete existing comments
+- Status change comments show visual badges with "from → to" status
+- Timestamps with "(edited)" indicator
+
+### Extended Status Pipeline (Completed)
+
+The application uses a 10-stage recruitment pipeline defined in `/lib/constants/statuses.js`:
+
+| Status | Color | Description |
+|--------|-------|-------------|
+| `PENDING` | Gray (#757575) | New application, not yet reviewed |
+| `UNDER_REVIEW` | Blue (#2196f3) | Application is being reviewed |
+| `SHORTLISTED` | Green (#4caf50) | Candidate selected for interview |
+| `INTERVIEW_SCHEDULED` | Orange (#ff9800) | Interview has been scheduled |
+| `INTERVIEWED` | Purple (#9c27b0) | Interview completed, awaiting decision |
+| `OFFER_EXTENDED` | Cyan (#00bcd4) | Job offer has been sent |
+| `HIRED` | Green (#4caf50) | Candidate has accepted and joined |
+| `REJECTED` | Red (#f44336) | Candidate not selected |
+| `ON_HOLD` | Brown (#795548) | Decision pending, candidate on hold |
+| `WITHDRAWN` | Gray (#9e9e9e) | Candidate withdrew application |
+
+**Status Change Features:**
+- Mandatory comment required when changing status
+- Status change modal in CandidateDetail
+- Status history tracked in comments with visual badges
+- Bulk status update in CandidateTable/CandidateCardView
+- Status filter in table/card views
+
+**Helper Functions:**
+- `getStatusOptions()` - Get all statuses for dropdowns (sorted by order)
+- `getStatusDisplay(status)` - Get label, color, bgColor for a status
+- `VALID_TRANSITIONS` - Optional validation for allowed status transitions
+
+---
+
 ## Database Changes
 
 ### New Table: `jobs`
@@ -84,6 +152,14 @@ DROP CONSTRAINT IF EXISTS candidates_recommendation_check;
 ALTER TABLE public.candidates
 ADD CONSTRAINT candidates_recommendation_check
 CHECK (recommendation = ANY (ARRAY['Highly Recommended', 'Recommended', 'Maybe', 'Not Recommended', 'Strong Fit', 'Good Fit', 'Potential Fit', 'Not a Fit']));
+
+-- Update status constraint to use the new extended statuses
+ALTER TABLE public.candidates
+DROP CONSTRAINT IF EXISTS candidates_status_check;
+
+ALTER TABLE public.candidates
+ADD CONSTRAINT candidates_status_check
+CHECK (status = ANY (ARRAY['PENDING', 'UNDER_REVIEW', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'INTERVIEWED', 'OFFER_EXTENDED', 'HIRED', 'REJECTED', 'ON_HOLD', 'WITHDRAWN']));
 ```
 
 ### Handling Existing Data
@@ -148,6 +224,9 @@ FOR ALL USING (auth.role() = 'authenticated');
     ├── jobs/
     │   ├── route.js           -- GET (list), POST (create)
     │   └── [id]/route.js      -- GET, PUT, DELETE
+    ├── comments/
+    │   ├── route.js           -- GET (list), POST (create) [EXISTING]
+    │   └── [id]/route.js      -- PUT, DELETE [EXISTING]
     ├── submit-candidate/route.js  -- Updated to accept job_id
     └── generate-summary/route.js  -- Updated to use job's AI prompt
 ```
@@ -172,6 +251,7 @@ FOR ALL USING (auth.role() = 'authenticated');
    - Add `job_id` to `submitCandidate()`
    - Add job filter to `getCandidates(filters)`
    - Update queries to join with jobs table
+   - Keep existing status validation using `CANDIDATE_STATUSES`
 
 4. **Create Jobs API routes**:
    - `/api/jobs/route.js` - List and create jobs
@@ -258,21 +338,26 @@ FOR ALL USING (auth.role() = 'authenticated');
 
 ### Phase 4: Dashboard Updates
 
-13. **Update Dashboard `/app/dashboard/page.js`**:
+15. **Update Dashboard `/app/dashboard/page.js`**:
     - Add job filter dropdown at top
     - Update stats to show per-job or all-jobs
     - Add "Manage Jobs" button/link
+    - Stats already calculate using extended statuses (HIRED, in-process statuses, etc.)
 
-14. **Update CandidateTable.js & CandidateCardView.js**:
+16. **Update CandidateTable.js & CandidateCardView.js**:
     - Add "Job" column showing job title
     - Add job filter in column filters
+    - Keep existing status filters (already using `getStatusOptions()`)
+    - Keep existing bulk status update functionality
 
-15. **Update CandidateDetail.js**:
+17. **Update CandidateDetail.js**:
     - Show applied job prominently
+    - Keep existing comments/feedback section
+    - Keep existing status change modal with mandatory comments
 
 ### Phase 5: AI Summary Updates
 
-16. **Update `/api/generate-summary/route.js`**:
+18. **Update `/api/generate-summary/route.js`**:
     - Fetch job's `ai_evaluation_prompt` from database
     - Use job-specific prompt instead of hardcoded trade-finance prompt
     - Store job-relevant scores (structure depends on job's criteria)
@@ -306,11 +391,19 @@ FOR ALL USING (auth.role() = 'authenticated');
 | `/app/api/generate-summary/route.js` | Use job's AI prompt from database |
 | `/lib/services/candidateService.js` | Add job_id support, update duplicate checks |
 | `/app/dashboard/page.js` | Add job filter dropdown |
-| `/components/hr/CandidateTable.js` | Add job column |
-| `/components/hr/CandidateCardView.js` | Add job info |
-| `/components/hr/CandidateDetail.js` | Show job info prominently |
+| `/components/hr/CandidateTable.js` | Add job column (keep existing status features) |
+| `/components/hr/CandidateCardView.js` | Add job info (keep existing status features) |
+| `/components/hr/CandidateDetail.js` | Show job info (keep comments/status change modal) |
 | `/app/dashboard/layout.js` | Add jobs nav link |
 | `/package.json` | Add `@uiw/react-md-editor` for markdown editing |
+
+## Existing Files (No Changes Needed)
+
+| File | Notes |
+|------|-------|
+| `/lib/constants/statuses.js` | Extended 10-status pipeline already defined |
+| `/app/api/comments/route.js` | Comments API already working |
+| `/app/api/comments/[id]/route.js` | Comment edit/delete API already working |
 
 ---
 
@@ -379,6 +472,12 @@ FOR ALL USING (auth.role() = 'authenticated');
    - Job filter dropdown at top (default: "All Jobs")
    - Stats update based on selected job filter
    - Job name shown as column/chip on each candidate
+   - Existing status pipeline filters remain functional
+
+6. **Candidate Detail Modal** (Already Implemented):
+   - Status change with mandatory comment
+   - Status history shown in comments with visual badges
+   - Full comments/feedback section with edit/delete
 
 ---
 
@@ -389,6 +488,7 @@ FOR ALL USING (auth.role() = 'authenticated');
 - No data loss during migration
 - Legacy job marked inactive to prevent new applications
 - Rollback possible by making job_id nullable again
+- Existing comments and status history preserved
 
 ---
 
@@ -400,3 +500,7 @@ FOR ALL USING (auth.role() = 'authenticated');
 - Email templates per job
 - Custom form fields per job
 - Analytics dashboard per job
+- Interview scheduling integration
+- Calendar sync (Google Calendar, Outlook)
+- SMS notifications
+- Candidate communication log
