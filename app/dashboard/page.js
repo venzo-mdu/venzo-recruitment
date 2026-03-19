@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Box,
   Typography,
@@ -14,6 +15,18 @@ import {
   ToggleButton,
   useMediaQuery,
   useTheme,
+  Button,
+  TextField,
+  Chip,
+  Checkbox,
+  ListItemText,
+  ListSubheader,
+  MenuItem,
+  FormControl,
+  Select,
+  OutlinedInput,
+  InputAdornment,
+  IconButton,
 } from '@mui/material';
 import {
   People,
@@ -22,16 +35,24 @@ import {
   DateRange,
   ViewList,
   ViewModule,
+  PersonOutline,
+  GroupOutlined,
+  Search,
+  Clear,
 } from '@mui/icons-material';
 import CandidateTable from '../../components/hr/CandidateTable';
 import CandidateCardView from '../../components/hr/CandidateCardView';
 import CandidateDetail from '../../components/hr/CandidateDetail';
 import { getCandidates, updateCandidateStatus, deleteCandidate } from '../../lib/services/candidateService';
 import { getResumeUrl } from '../../lib/services/storageService';
+import { getJobPosts } from '../../lib/services/jobPostService';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const router = useRouter();
+  const { user } = useAuth();
 
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,22 +61,95 @@ export default function DashboardPage() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiProgress, setAiProgress] = useState({ current: 0, total: 0 });
-  const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
+  const [viewMode, setViewMode] = useState('table');
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimer = useRef(null);
+  const initialLoadDone = useRef(false);
+
+  // Job post state
+  const [jobPosts, setJobPosts] = useState([]);
+  const [selectedJobIds, setSelectedJobIds] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [showMyJobs, setShowMyJobs] = useState(true);
+
+  // Group jobs by brand
+  const groupedJobs = useMemo(() => {
+    const groups = { venzo: [], kytz: [], shelfi: [] };
+    jobPosts.forEach(job => {
+      const brand = job.brand || 'venzo';
+      if (!groups[brand]) groups[brand] = [];
+      groups[brand].push(job);
+    });
+    return groups;
+  }, [jobPosts]);
+
+  // Load job posts on mount and when filter changes
   useEffect(() => {
-    loadCandidates();
-  }, []);
+    if (user) {
+      loadJobPosts();
+    }
+  }, [user, showMyJobs]);
 
-  const loadCandidates = async () => {
+  // Debounce search input
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 400);
+    return () => clearTimeout(debounceTimer.current);
+  }, [searchQuery]);
+
+  // Load candidates when selected jobs or search changes (skip until initial job load is done)
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    loadCandidates();
+  }, [selectedJobIds, debouncedSearch]);
+
+  const loadJobPosts = async () => {
+    setJobsLoading(true);
+    try {
+      const filters = {};
+      if (showMyJobs && user) {
+        filters.createdBy = user.id;
+      }
+      const result = await getJobPosts(filters);
+      if (result.success) {
+        setJobPosts(result.data);
+        const jobIds = result.data.map(j => j.id);
+        setSelectedJobIds(jobIds);
+        // Load candidates immediately on first load to avoid double trigger
+        initialLoadDone.current = true;
+        await loadCandidatesWithIds(jobIds);
+      } else {
+        showSnackbar('Failed to load job posts', 'error');
+      }
+    } catch (error) {
+      showSnackbar('An error occurred while loading job posts', 'error');
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
+  const loadCandidatesWithIds = async (jobIds, search) => {
+    if (!jobIds || jobIds.length === 0) {
+      setCandidates([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const result = await getCandidates();
+      const filters = { jobPostIds: jobIds };
+      if (search?.trim()) {
+        filters.search = search.trim();
+      }
+      const result = await getCandidates(filters);
       if (result.success) {
         setCandidates(result.data);
-        setLoading(false); // Set loading to false immediately after fetching
-
-        // Trigger AI analysis for candidates without summaries (non-blocking)
-        // Don't await - let it run in the background
+        setLoading(false);
         generateMissingAISummaries(result.data);
       } else {
         showSnackbar('Failed to load candidates', 'error');
@@ -67,29 +161,23 @@ export default function DashboardPage() {
     }
   };
 
+  const loadCandidates = () => loadCandidatesWithIds(selectedJobIds, debouncedSearch);
+
   const generateMissingAISummaries = async (candidateList) => {
-    // Find candidates without AI summaries
     const candidatesWithoutSummary = candidateList.filter(
       c => !c.ai_summary || c.ai_summary.trim() === ''
     );
 
-    if (candidatesWithoutSummary.length === 0) {
-      return; // No candidates need AI analysis
-    }
+    if (candidatesWithoutSummary.length === 0) return;
 
     setAiProcessing(true);
     setAiProgress({ current: 0, total: candidatesWithoutSummary.length });
 
-    console.log(`Starting AI analysis for ${candidatesWithoutSummary.length} candidates...`);
-
-    // Process candidates one by one
     for (let i = 0; i < candidatesWithoutSummary.length; i++) {
       const candidate = candidatesWithoutSummary[i];
 
       try {
         setAiProgress({ current: i + 1, total: candidatesWithoutSummary.length });
-
-        console.log(`Generating AI summary for: ${candidate.full_name}`);
 
         const response = await fetch('/api/generate-summary', {
           method: 'POST',
@@ -104,7 +192,6 @@ export default function DashboardPage() {
         const data = await response.json();
 
         if (response.ok && data.success) {
-          // Update local state with new summary and analysis data
           setCandidates(prev =>
             prev.map(c => {
               if (c.id === candidate.id) {
@@ -112,23 +199,18 @@ export default function DashboardPage() {
                   ...c,
                   ai_summary: data.summary,
                   ai_analysis: data.analysis,
-                  overall_score: data.analysis?.scoring?.overall_score || c.overall_score,
+                  overall_score: data.analysis?.overall_score || data.analysis?.scoring?.overall_score || c.overall_score,
                   recommendation: data.analysis?.recommendation || c.recommendation,
                 };
               }
               return c;
             })
           );
-
-          console.log(`✓ AI summary generated for: ${candidate.full_name}`);
-        } else {
-          console.error(`✗ Failed to generate AI summary for: ${candidate.full_name}`, data.error);
         }
       } catch (error) {
-        console.error(`✗ Error generating AI summary for: ${candidate.full_name}`, error);
+        console.error(`Error generating AI summary for: ${candidate.full_name}`, error);
       }
 
-      // Add a small delay to avoid rate limiting
       if (i < candidatesWithoutSummary.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -145,7 +227,6 @@ export default function DashboardPage() {
     }
   };
 
-
   const handleViewDetails = (candidate) => {
     setSelectedCandidate(candidate);
     setDetailOpen(true);
@@ -153,11 +234,9 @@ export default function DashboardPage() {
 
   const handleToggleShortlist = async (candidateId, currentStatus) => {
     try {
-      // Toggle between SHORTLISTED and PENDING
       const newStatus = currentStatus === 'SHORTLISTED' ? 'PENDING' : 'SHORTLISTED';
       const result = await updateCandidateStatus(candidateId, newStatus);
       if (result.success) {
-        // Update local state
         setCandidates(prev =>
           prev.map(c => c.id === candidateId ? { ...c, status: newStatus } : c)
         );
@@ -177,7 +256,6 @@ export default function DashboardPage() {
     try {
       const result = await updateCandidateStatus(candidateId, newStatus);
       if (result.success) {
-        // Update local state
         setCandidates(prev =>
           prev.map(c => c.id === candidateId ? { ...c, status: newStatus } : c)
         );
@@ -194,7 +272,6 @@ export default function DashboardPage() {
     try {
       const result = await getResumeUrl(resumePath);
       if (result.success) {
-        // Open in new tab
         window.open(result.url, '_blank');
         showSnackbar('Resume opened in new tab', 'success');
       } else {
@@ -205,28 +282,10 @@ export default function DashboardPage() {
     }
   };
 
-  const handleRejectCandidate = async (candidateId) => {
-    try {
-      const result = await updateCandidateStatus(candidateId, 'REJECTED');
-      if (result.success) {
-        // Update local state
-        setCandidates(prev =>
-          prev.map(c => c.id === candidateId ? { ...c, status: 'REJECTED' } : c)
-        );
-        showSnackbar('Candidate has been rejected', 'success');
-      } else {
-        showSnackbar('Failed to reject candidate', 'error');
-      }
-    } catch (error) {
-      showSnackbar('An error occurred', 'error');
-    }
-  };
-
   const handleDeleteCandidate = async (candidateId, candidateName) => {
     try {
       const result = await deleteCandidate(candidateId);
       if (result.success) {
-        // Remove from local state
         setCandidates(prev => prev.filter(c => c.id !== candidateId));
         showSnackbar(`${candidateName}'s application has been deleted`, 'success');
       } else {
@@ -243,6 +302,88 @@ export default function DashboardPage() {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleJobFilterChange = (_event, newValue) => {
+    if (newValue !== null) {
+      setShowMyJobs(newValue === 'mine');
+    }
+  };
+
+  const handleJobSelectionChange = (event) => {
+    const value = event.target.value;
+    // MUI Select returns 'string' on backspace or array
+    setSelectedJobIds(typeof value === 'string' ? value.split(',') : value);
+  };
+
+  // Build menu items with brand groups
+  const renderJobMenuItems = () => {
+    const items = [];
+    const brandLabels = { venzo: 'Venzo Technologies', kytz: 'Kytz Labs', shelfi: 'SHELFi' };
+
+    for (const [brand, jobs] of Object.entries(groupedJobs)) {
+      if (jobs.length === 0) continue;
+
+      const allBrandSelected = jobs.every(j => selectedJobIds.includes(j.id));
+      const someBrandSelected = jobs.some(j => selectedJobIds.includes(j.id));
+
+      items.push(
+        <ListSubheader
+          key={`header-${brand}`}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            cursor: 'pointer',
+            '&:hover': { backgroundColor: 'action.hover' },
+            lineHeight: '36px',
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (allBrandSelected) {
+              // Deselect all jobs of this brand
+              setSelectedJobIds(prev => prev.filter(id => !jobs.find(j => j.id === id)));
+            } else {
+              // Select all jobs of this brand
+              const brandJobIds = jobs.map(j => j.id);
+              setSelectedJobIds(prev => [...new Set([...prev, ...brandJobIds])]);
+            }
+          }}
+        >
+          <Checkbox
+            size="small"
+            checked={allBrandSelected}
+            indeterminate={someBrandSelected && !allBrandSelected}
+            sx={{ p: 0, mr: 0.5 }}
+          />
+          <Chip
+            label={brandLabels[brand] || brand}
+            size="small"
+            color={brand === 'kytz' ? 'secondary' : 'primary'}
+            sx={{ fontSize: '0.7rem', height: 20 }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            ({jobs.length} job{jobs.length > 1 ? 's' : ''})
+          </Typography>
+        </ListSubheader>
+      );
+
+      for (const job of jobs) {
+        items.push(
+          <MenuItem key={job.id} value={job.id} sx={{ pl: 4 }}>
+            <Checkbox size="small" checked={selectedJobIds.includes(job.id)} />
+            <ListItemText
+              primary={job.title}
+              secondary={[job.department, job.location, job.status !== 'OPEN' ? job.status : ''].filter(Boolean).join(' · ')}
+              primaryTypographyProps={{ variant: 'body2' }}
+              secondaryTypographyProps={{ variant: 'caption' }}
+            />
+          </MenuItem>
+        );
+      }
+    }
+
+    return items;
   };
 
   // Calculate statistics
@@ -305,7 +446,6 @@ export default function DashboardPage() {
     </Card>
   );
 
-  // Determine which view to show
   const effectiveViewMode = isMobile ? 'card' : viewMode;
 
   const handleViewModeChange = (_event, newMode) => {
@@ -314,34 +454,104 @@ export default function DashboardPage() {
     }
   };
 
+  // Render selected value in the select
+  const renderSelectedValue = (selected) => {
+    if (selected.length === 0) return 'No jobs selected';
+    return `${selected.length} Job${selected.length > 1 ? 's' : ''} Selected`;
+  };
+
   return (
     <Box>
-      {/* Header with Title and View Toggle */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+      {/* Header: Title + View Toggle */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
           Candidate Management
         </Typography>
-
-        {/* View Toggle - Only show on desktop */}
         {!isMobile && (
           <ToggleButtonGroup
             value={viewMode}
             exclusive
             onChange={handleViewModeChange}
             size="small"
-            aria-label="view mode"
           >
-            <ToggleButton value="table" aria-label="table view">
+            <ToggleButton value="table" sx={{ px: 1.5, py: 0.5, textTransform: 'none', fontSize: '0.8rem' }}>
               <ViewList fontSize="small" sx={{ mr: 0.5 }} />
               Table
             </ToggleButton>
-            <ToggleButton value="card" aria-label="card view">
+            <ToggleButton value="card" sx={{ px: 1.5, py: 0.5, textTransform: 'none', fontSize: '0.8rem' }}>
               <ViewModule fontSize="small" sx={{ mr: 0.5 }} />
               Cards
             </ToggleButton>
           </ToggleButtonGroup>
         )}
       </Box>
+
+      {/* Toolbar: Job filters + Search */}
+      <Box sx={{ display: 'flex', gap: 1.5, mb: 3, alignItems: 'center', flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
+        {/* Job ownership toggle */}
+        <ToggleButtonGroup
+          value={showMyJobs ? 'mine' : 'all'}
+          exclusive
+          onChange={handleJobFilterChange}
+          size="small"
+          sx={{ flexShrink: 0 }}
+        >
+          <ToggleButton value="mine" sx={{ px: 1.5, py: 0.6, textTransform: 'none', fontSize: '0.8rem' }}>
+            My Jobs
+          </ToggleButton>
+          <ToggleButton value="all" sx={{ px: 1.5, py: 0.6, textTransform: 'none', fontSize: '0.8rem' }}>
+            All Jobs
+          </ToggleButton>
+        </ToggleButtonGroup>
+
+        {/* Job select */}
+        <FormControl size="small" sx={{ minWidth: 180, flexShrink: 0 }}>
+          <Select
+            multiple
+            value={selectedJobIds}
+            onChange={handleJobSelectionChange}
+            input={<OutlinedInput />}
+            displayEmpty
+            renderValue={renderSelectedValue}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 400 } } }}
+            sx={{ fontSize: '0.85rem' }}
+          >
+            {renderJobMenuItems()}
+          </Select>
+        </FormControl>
+
+        <Box sx={{ flex: 1 }} />
+
+        {/* Search */}
+        <TextField
+          size="small"
+          placeholder="Search candidates..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          sx={{ width: { xs: '100%', md: '25%' } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search color="action" fontSize="small" />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery && (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={() => setSearchQuery('')}>
+                  <Clear fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+
+      {/* No jobs message */}
+      {jobPosts.length === 0 && !jobsLoading && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          No job posts found. <Button size="small" onClick={() => router.push('/dashboard/jobs/new')}>Create one</Button>
+        </Alert>
+      )}
 
       {/* AI Processing Indicator */}
       {aiProcessing && (
@@ -358,63 +568,49 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* Statistics Cards - 2 per row on mobile (xs=6), 4 per row on desktop */}
-      <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 4 }}>
-        <Grid item xs={6} sm={6} md={3}>
-          <StatCard
-            icon={<People />}
-            title="Total Applications"
-            value={stats.total}
-            color="#0030ce"
-          />
+      {/* Statistics Cards */}
+      {selectedJobIds.length > 0 && (
+        <Grid container spacing={{ xs: 1, sm: 2 }} sx={{ mb: 3 }}>
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard icon={<People />} title="Total Applications" value={stats.total} color="#0030ce" />
+          </Grid>
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard icon={<TrendingUp />} title="In Process" value={stats.inProcess} color="#ff9800" />
+          </Grid>
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard icon={<DateRange />} title="This Week" value={stats.thisWeek} color="#2196f3" />
+          </Grid>
+          <Grid item xs={6} sm={6} md={3}>
+            <StatCard icon={<Star />} title="Hired" value={stats.hired} color="#4caf50" />
+          </Grid>
         </Grid>
-        <Grid item xs={6} sm={6} md={3}>
-          <StatCard
-            icon={<TrendingUp />}
-            title="In Process"
-            value={stats.inProcess}
-            color="#ff9800"
-          />
-        </Grid>
-        <Grid item xs={6} sm={6} md={3}>
-          <StatCard
-            icon={<DateRange />}
-            title="This Week"
-            value={stats.thisWeek}
-            color="#2196f3"
-          />
-        </Grid>
-        <Grid item xs={6} sm={6} md={3}>
-          <StatCard
-            icon={<Star />}
-            title="Hired"
-            value={stats.hired}
-            color="#4caf50"
-          />
-        </Grid>
-      </Grid>
+      )}
 
       {/* Candidate View - Table or Card based on view mode */}
-      {effectiveViewMode === 'table' ? (
-        <CandidateTable
-          candidates={candidates}
-          loading={loading}
-          onViewDetails={handleViewDetails}
-          onToggleShortlist={handleToggleShortlist}
-          onUpdateStatus={handleUpdateStatus}
-          onDownloadResume={handleDownloadResume}
-          onDelete={handleDeleteCandidate}
-        />
-      ) : (
-        <CandidateCardView
-          candidates={candidates}
-          loading={loading}
-          onViewDetails={handleViewDetails}
-          onToggleShortlist={handleToggleShortlist}
-          onUpdateStatus={handleUpdateStatus}
-          onDownloadResume={handleDownloadResume}
-          onDelete={handleDeleteCandidate}
-        />
+      {selectedJobIds.length > 0 && (
+        <>
+          {effectiveViewMode === 'table' ? (
+            <CandidateTable
+              candidates={candidates}
+              loading={loading}
+              onViewDetails={handleViewDetails}
+              onToggleShortlist={handleToggleShortlist}
+              onUpdateStatus={handleUpdateStatus}
+              onDownloadResume={handleDownloadResume}
+              onDelete={handleDeleteCandidate}
+            />
+          ) : (
+            <CandidateCardView
+              candidates={candidates}
+              loading={loading}
+              onViewDetails={handleViewDetails}
+              onToggleShortlist={handleToggleShortlist}
+              onUpdateStatus={handleUpdateStatus}
+              onDownloadResume={handleDownloadResume}
+              onDelete={handleDeleteCandidate}
+            />
+          )}
+        </>
       )}
 
       {/* Candidate Detail Modal */}
@@ -425,7 +621,6 @@ export default function DashboardPage() {
         onStatusChange={handleUpdateStatus}
         onRefresh={() => {
           loadCandidates();
-          // Update selected candidate with latest data
           if (selectedCandidate) {
             const updated = candidates.find(c => c.id === selectedCandidate.id);
             if (updated) setSelectedCandidate(updated);

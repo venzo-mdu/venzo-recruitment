@@ -2,6 +2,7 @@ import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import ThemeProvider from '../components/providers/ThemeProvider';
 import { AuthProvider } from '../components/providers/AuthProvider';
+import BrandHead from '../components/common/BrandHead';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -14,8 +15,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata = {
-  title: 'Venzo Recruitment Portal',
-  description: 'Apply for positions at Venzo',
+  title: 'Careers Portal',
+  description: 'Apply for open positions',
   icons: {
     icon: '/favicon.svg',
   },
@@ -27,6 +28,7 @@ export default function RootLayout({ children }) {
       <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
         <ThemeProvider>
           <AuthProvider>
+            <BrandHead />
             {children}
           </AuthProvider>
         </ThemeProvider>

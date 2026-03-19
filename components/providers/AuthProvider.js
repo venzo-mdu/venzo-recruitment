@@ -32,9 +32,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       if (session?.user) {
-        setUser(session.user);
+        setUser(prev => prev?.id === session.user.id ? prev : session.user);
       } else {
-        setUser(null);
+        setUser(prev => prev === null ? prev : null);
       }
       setLoading(false);
     });

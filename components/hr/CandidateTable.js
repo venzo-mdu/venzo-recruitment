@@ -113,18 +113,29 @@ export default function CandidateTable({
     setCandidateToDelete(null);
   };
 
-  // Extract suitability from AI summary
+  // Extract suitability from recommendation field or AI summary
   const getSuitability = (candidate) => {
-    if (!candidate.ai_summary) return null;
-
-    const proceedMatch = candidate.ai_summary.match(/Proceed:\s*(Yes|Maybe|No)/i);
-    if (proceedMatch) {
-      const decision = proceedMatch[1].toLowerCase();
-      if (decision === 'yes') {
-        return { label: 'Good Fit', color: 'success', icon: <CheckCircle fontSize="small" /> };
-      } else if (decision === 'maybe') {
+    const recommendation = candidate.recommendation;
+    if (recommendation) {
+      const rec = recommendation.toLowerCase();
+      if (rec.includes('not recommended')) {
+        return { label: 'Not Suitable', color: 'error', icon: <Cancel fontSize="small" /> };
+      } else if (rec.includes('maybe')) {
         return { label: 'Maybe', color: 'warning', icon: <Warning fontSize="small" /> };
+      } else if (rec.includes('recommended')) {
+        return { label: 'Good Fit', color: 'success', icon: <CheckCircle fontSize="small" /> };
       } else {
+        return { label: 'Not Suitable', color: 'error', icon: <Cancel fontSize="small" /> };
+      }
+    }
+
+    // Fallback for legacy data
+    if (candidate.ai_summary) {
+      const proceedMatch = candidate.ai_summary.match(/Proceed:\s*(Yes|Maybe|No)/i);
+      if (proceedMatch) {
+        const decision = proceedMatch[1].toLowerCase();
+        if (decision === 'yes') return { label: 'Good Fit', color: 'success', icon: <CheckCircle fontSize="small" /> };
+        if (decision === 'maybe') return { label: 'Maybe', color: 'warning', icon: <Warning fontSize="small" /> };
         return { label: 'Not Suitable', color: 'error', icon: <Cancel fontSize="small" /> };
       }
     }
@@ -1070,7 +1081,8 @@ export default function CandidateTable({
                         .replace(/^(.*?)(?=Score:)/s, (match) => match.replace(/\n/g, '<br/>'))
                         .replace(/\n(Strengths?:)/g, '<br/><strong>$1</strong>')
                         .replace(/\n(Gaps?:)/g, '<br/><strong>$1</strong>')
-                        .replace(/\n(Fit for Venzo:)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Fit for (?:Venzo|Role):)/g, '<br/><strong>$1</strong>')
+                        .replace(/\n(Recommendation:)/g, '<br/><strong>$1</strong>')
                         .replace(/\n(Proceed:)/g, '<br/><strong>$1</strong>')
                         .replace(/\n•/g, '<br/>•')
                         .replace(/Score: ([\d.]+) \/ 10/g, '<br/><strong style="color: #0030ce; font-size: 1.1em;">Score: $1 / 10</strong>')

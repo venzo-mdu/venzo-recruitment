@@ -22,7 +22,8 @@ import {
 } from '@mui/icons-material';
 import { validateCandidateForm, validateResume, formatIndianNumber, numberToWords } from '../../lib/utils/validation';
 
-export default function CandidateForm({ onSuccess }) {
+export default function CandidateForm({ onSuccess, jobPostId, jobTitle, employmentType, brandTheme, brandKey }) {
+  const isInternship = employmentType === 'internship';
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -122,8 +123,11 @@ export default function CandidateForm({ onSuccess }) {
     setSubmitError('');
     setErrors({}); // Clear all previous errors
 
-    // Validate form
-    const validation = validateCandidateForm(formData);
+    // Validate form — for internships, fill defaults before validation
+    const dataToValidate = isInternship
+      ? { ...formData, currentSalary: '0', expectedSalary: '0', noticePeriod: '0' }
+      : formData;
+    const validation = validateCandidateForm(dataToValidate);
     if (!validation.isValid) {
       setErrors(validation.errors);
       setSubmitError('Please fix the errors in the form before submitting.');
@@ -160,9 +164,10 @@ export default function CandidateForm({ onSuccess }) {
       // Prepare candidate data
       const candidateData = {
         ...formData,
-        currentSalary: parseFloat(formData.currentSalary),
-        expectedSalary: parseFloat(formData.expectedSalary),
-        noticePeriod: parseInt(formData.noticePeriod, 10),
+        currentSalary: isInternship ? 0 : parseFloat(formData.currentSalary),
+        expectedSalary: isInternship ? 0 : parseFloat(formData.expectedSalary),
+        noticePeriod: isInternship ? 0 : parseInt(formData.noticePeriod, 10),
+        jobPostId: jobPostId || null,
       };
 
       // Submit via API route (includes rate limiting)
@@ -184,8 +189,8 @@ export default function CandidateForm({ onSuccess }) {
         }
 
         // Check if it's a duplicate error and highlight the field
-        if (submitResult.error.includes('email address has already been used')) {
-          setErrors({ email: 'This email has already been used' });
+        if (submitResult.error.includes('email address has already been used') || submitResult.error.includes('email_job_unique')) {
+          setErrors({ email: 'You have already applied for this job' });
           window.scrollTo({ top: 0, behavior: 'smooth' });
         } else if (submitResult.error.includes('phone number has already been used')) {
           setErrors({ phone: 'This phone number has already been used' });
@@ -202,6 +207,8 @@ export default function CandidateForm({ onSuccess }) {
           body: JSON.stringify({
             candidateEmail: formData.email,
             candidateName: formData.fullName,
+            brand: brandKey || undefined,
+            jobTitle: jobTitle || undefined,
           }),
         });
       } catch (emailError) {
@@ -300,54 +307,58 @@ export default function CandidateForm({ onSuccess }) {
             />
           </Grid>
 
-          {/* Current CTC */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Current CTC"
-              name="currentSalary"
-              type="text"
-              value={displayValues.currentSalary}
-              onChange={handleChange}
-              error={!!errors.currentSalary}
-              helperText={errors.currentSalary || (formData.currentSalary ? numberToWords(parseFloat(formData.currentSalary)) : '')}
-              required
-              placeholder="Enter annual CTC"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CurrencyRupee />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
+          {/* Current CTC — hidden for internships */}
+          {!isInternship && (
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Current CTC"
+                name="currentSalary"
+                type="text"
+                value={displayValues.currentSalary}
+                onChange={handleChange}
+                error={!!errors.currentSalary}
+                helperText={errors.currentSalary || (formData.currentSalary ? numberToWords(parseFloat(formData.currentSalary)) : '')}
+                required
+                placeholder="Enter annual CTC"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CurrencyRupee />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+          )}
 
-          {/* Expected CTC */}
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Expected CTC"
-              name="expectedSalary"
-              type="text"
-              value={displayValues.expectedSalary}
-              onChange={handleChange}
-              error={!!errors.expectedSalary}
-              helperText={errors.expectedSalary || (formData.expectedSalary ? numberToWords(parseFloat(formData.expectedSalary)) : '')}
-              required
-              placeholder="Enter expected CTC"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CurrencyRupee />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
+          {/* Expected CTC — hidden for internships */}
+          {!isInternship && (
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Expected CTC"
+                name="expectedSalary"
+                type="text"
+                value={displayValues.expectedSalary}
+                onChange={handleChange}
+                error={!!errors.expectedSalary}
+                helperText={errors.expectedSalary || (formData.expectedSalary ? numberToWords(parseFloat(formData.expectedSalary)) : '')}
+                required
+                placeholder="Enter expected CTC"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CurrencyRupee />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+          )}
 
           {/* Salary Warning */}
-          {showSalaryWarning && (
+          {!isInternship && showSalaryWarning && (
             <Grid item xs={12}>
               <Alert severity="warning" sx={{ mb: 0 }}>
                 <strong>Note:</strong> Your CTC expectation is above ₹9,00,000 per annum. Please note that we are looking for candidates with ₹6,00,000 to ₹9,00,000 per annum. Applications with higher expectations may or may not be considered.
@@ -355,29 +366,31 @@ export default function CandidateForm({ onSuccess }) {
             </Grid>
           )}
 
-          {/* Notice Period */}
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Notice Period (in days)"
-              name="noticePeriod"
-              type="number"
-              value={formData.noticePeriod}
-              onChange={handleChange}
-              error={!!errors.noticePeriod}
-              helperText={errors.noticePeriod || 'Enter 0 if you can join immediately'}
-              required
-              placeholder="e.g., 30, 60, 90"
-              inputProps={{ min: 0, max: 365 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CalendarToday />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
+          {/* Notice Period — hidden for internships */}
+          {!isInternship && (
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notice Period (in days)"
+                name="noticePeriod"
+                type="number"
+                value={formData.noticePeriod}
+                onChange={handleChange}
+                error={!!errors.noticePeriod}
+                helperText={errors.noticePeriod || 'Enter 0 if you can join immediately'}
+                required
+                placeholder="e.g., 30, 60, 90"
+                inputProps={{ min: 0, max: 365 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarToday />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+          )}
 
           {/* Resume Upload */}
           <Grid item xs={12}>
@@ -386,7 +399,14 @@ export default function CandidateForm({ onSuccess }) {
               component="label"
               fullWidth
               startIcon={<CloudUpload />}
-              sx={{ py: 2 }}
+              sx={{
+                py: 2,
+                ...(brandTheme && !errors.resume && {
+                  borderColor: brandTheme.buttonBg,
+                  color: brandTheme.buttonBg,
+                  '&:hover': { borderColor: brandTheme.buttonBg, backgroundColor: `${brandTheme.buttonBg}08` },
+                }),
+              }}
               color={errors.resume ? 'error' : 'primary'}
             >
               {resume ? resume.name : 'Upload Resume (PDF only)'}
@@ -412,7 +432,14 @@ export default function CandidateForm({ onSuccess }) {
               fullWidth
               size="large"
               disabled={loading}
-              sx={{ py: 1.5 }}
+              sx={{
+                py: 1.5,
+                ...(brandTheme && {
+                  backgroundColor: brandTheme.buttonBg,
+                  color: brandTheme.buttonText,
+                  '&:hover': { backgroundColor: brandTheme.buttonBg, opacity: 0.9 },
+                }),
+              }}
             >
               {loading ? (
                 <>

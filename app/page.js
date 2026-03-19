@@ -1,34 +1,79 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Script from 'next/script';
-import { Box, Container, Typography, Grid, Paper } from '@mui/material';
-import { CheckBox as CheckBoxIcon } from '@mui/icons-material';
-import CandidateForm from '../components/candidate/CandidateForm';
-import SuccessDialog from '../components/common/SuccessDialog';
+import {
+  Box,
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Chip,
+  CircularProgress,
+} from '@mui/material';
+import {
+  LocationOn,
+  Work,
+  CurrencyRupee,
+  ArrowForward,
+} from '@mui/icons-material';
 import Logo from '../components/common/Logo';
+import { getBrandFromHostname, getBrandConfig } from '../lib/constants/brands';
 
 export default function HomePage() {
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const router = useRouter();
+  const [jobPosts, setJobPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [brand, setBrand] = useState('venzo');
+  const [brandConfig, setBrandConfig] = useState(getBrandConfig('venzo'));
 
-  const handleSuccess = () => {
-    setShowSuccessDialog(true);
+  useEffect(() => {
+    const detectedBrand = getBrandFromHostname(window.location.hostname);
+    setBrand(detectedBrand);
+    setBrandConfig(getBrandConfig(detectedBrand));
+    loadJobPosts(detectedBrand);
+  }, []);
+
+  const loadJobPosts = async (brandKey) => {
+    try {
+      const response = await fetch(`/api/job-posts?brand=${brandKey}&status=OPEN`);
+      const data = await response.json();
+      if (data.success) {
+        setJobPosts(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading job posts:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCloseDialog = () => {
-    setShowSuccessDialog(false);
-    window.location.reload();
+  const formatSalaryRange = (min, max) => {
+    if (!min && !max) return null;
+    const format = (val) => {
+      if (val >= 100000) return `${(val / 100000).toFixed(val % 100000 === 0 ? 0 : 1)} LPA`;
+      return `${val.toLocaleString('en-IN')}`;
+    };
+    if (min && max) return `${format(min)} – ${format(max)}`;
+    if (min) return `From ${format(min)}`;
+    return `Up to ${format(max)}`;
   };
 
-  const checklistItems = [
-    'Can speak clearly on calls and write crisp updates',
-    'Are comfortable with systems/screens/flows',
-    'Learn fast, ask smart questions',
-  ];
+  const employmentTypeLabels = {
+    'full-time': 'Full-time',
+    'part-time': 'Part-time',
+    'contract': 'Contract',
+    'internship': 'Internship',
+  };
+
+  const t = brandConfig.theme;
 
   return (
     <>
-      {/* Google Tag Manager - Only on candidate form page */}
       <Script id="gtm-script" strategy="afterInteractive">
         {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -37,13 +82,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-TF36G24R');`}
       </Script>
 
-      <Box
-        sx={{
-          minHeight: '100vh',
-          backgroundColor: '#e3ebfb',
-        }}
-      >
-        {/* Google Tag Manager (noscript) */}
+      <Box sx={{ minHeight: '100vh', backgroundColor: t.pageBg }}>
         <noscript>
           <iframe
             src="https://www.googletagmanager.com/ns.html?id=GTM-TF36G24R"
@@ -53,212 +92,181 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           />
         </noscript>
 
-        <Grid container sx={{ minHeight: '100vh' }}>
-        {/* Left Pane - Job Info */}
-        <Grid
-          item
-          xs={12}
-          md={5}
+        {/* Header */}
+        <Box
           sx={{
-            background: `
-              radial-gradient(ellipse at 0% 100%, #0030ce 0%, transparent 50%),
-              radial-gradient(ellipse at 100% 50%, #0030ce 0%, transparent 40%),
-              #0a1628
-            `,
-            color: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            p: { xs: 2.5, sm: 4, md: 5 },
+            background: t.headerBg,
+            color: t.headerText,
+            py: { xs: 4, md: 6 },
+            px: { xs: 2, md: 4 },
           }}
         >
-          <Box>
-            {/* Logo */}
-            <Box sx={{ mb: { xs: 2, md: 4 } }}>
-              <Logo width={140} height={50} variant="white" />
+          <Container maxWidth="lg">
+            <Box sx={{ mb: { xs: 2, md: 3 } }}>
+              <Logo width={140} height={50} variant="white" brand={brand} />
             </Box>
-
-            {/* Main Headline */}
             <Typography
               variant="h3"
               component="h1"
               sx={{
                 fontWeight: 800,
-                fontSize: { xs: '1.5rem', sm: '2.25rem', md: '2.5rem' },
+                fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' },
                 lineHeight: 1.1,
-                mb: { xs: 0.5, md: 1 },
-                textTransform: 'uppercase',
-                letterSpacing: '-0.02em',
+                mb: 1,
+                color: t.headerText,
               }}
             >
-              Stop Processing Trade Finance.
+              Join {brandConfig.name}
             </Typography>
-            <Typography
-              variant="h3"
-              component="h1"
-              sx={{
-                fontWeight: 800,
-                fontSize: { xs: '1.5rem', sm: '2.25rem', md: '2.5rem' },
-                lineHeight: 1.1,
-                mb: { xs: 1.5, md: 2 },
-                textTransform: 'uppercase',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Start Building It.
-            </Typography>
-
-            {/* Subtitle */}
             <Typography
               variant="h6"
               sx={{
                 fontWeight: 400,
-                fontSize: { xs: '0.85rem', sm: '1.1rem' },
-                mb: { xs: 2, md: 4 },
-                opacity: 0.9,
+                fontSize: { xs: '0.9rem', sm: '1.1rem' },
+                opacity: 0.85,
+                color: t.headerText,
               }}
             >
-              Move from Ops to TradeTech: QA → Implementation Consulting
+              Explore our open positions and find the right fit for your career
             </Typography>
-
-            {/* You'll fit right in section - Hidden on mobile */}
-            <Paper
-              elevation={0}
-              sx={{
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                borderRadius: 2,
-                p: 2,
-                mb: 3,
-                display: { xs: 'none', sm: 'block' },
-              }}
-            >
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 500,
-                  mb: 2,
-                  color: 'white',
-                }}
-              >
-                You&apos;ll fit right in if you
-              </Typography>
-
-              {checklistItems.map((item, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 1.5,
-                    mb: 1.5,
-                  }}
-                >
-                  <CheckBoxIcon
-                    sx={{
-                      color: '#60a5fa',
-                      fontSize: 22,
-                      mt: 0.2,
-                    }}
-                  />
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: 'white',
-                      fontSize: { xs: '0.9rem', sm: '1rem' },
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                </Box>
-              ))}
-            </Paper>
-
-            {/* Additional note - Hidden on mobile */}
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: { xs: '0.9rem', sm: '1rem' },
-                mb: { xs: 3, md: 4 },
-                opacity: 0.9,
-                display: { xs: 'none', sm: 'block' },
-              }}
-            >
-              And of course, know LCs, Guarantees, Collections, SWIFT in your sleep.
-            </Typography>
-
-            {/* Bottom Info Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                backgroundColor: '#0030ce',
-                borderRadius: 2,
-                p: { xs: 1.5, sm: 2.5 },
-                mt: 'auto',
-              }}
-            >
-              <Typography
-                variant="body1"
-                sx={{
-                  color: 'white',
-                  mb: { xs: 0.5, sm: 1.5 },
-                  fontSize: { xs: '0.8rem', sm: '1rem' },
-                }}
-              >
-                Work on Trade Finance, SCF & TBML platforms with leading banks and fintechs.
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: { xs: '0.9rem', sm: '1.1rem' },
-                }}
-              >
-                Chennai/Hybrid | ₹6–9 LPA | 15 openings
-              </Typography>
-            </Paper>
-          </Box>
-        </Grid>
-
-        {/* Right Pane - Application Form */}
-        <Grid
-          item
-          xs={12}
-          md={7}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            p: { xs: 2, sm: 3, md: 4 },
-            backgroundColor: '#e3ebfb',
-          }}
-        >
-          <Container maxWidth="sm" sx={{ py: { xs: 2, md: 0 } }}>
-            <Typography
-              variant="h5"
-              component="h2"
-              sx={{
-                fontWeight: 600,
-                mb: 1,
-                textAlign: 'center',
-                color: '#0a1628',
-              }}
-            >
-              Apply Now
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mb: 3, textAlign: 'center' }}
-            >
-              Fill out the form below to submit your application
-            </Typography>
-
-            <CandidateForm onSuccess={handleSuccess} />
           </Container>
-        </Grid>
-        </Grid>
+        </Box>
 
-        <SuccessDialog open={showSuccessDialog} onClose={handleCloseDialog} />
+        {/* Job Listings */}
+        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress sx={{ color: t.buttonBg }} />
+            </Box>
+          ) : jobPosts.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <Typography variant="h5" color="text.secondary" gutterBottom>
+                No open positions at the moment
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Check back soon for new opportunities at {brandConfig.name}.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <Typography
+                variant="h5"
+                sx={{ fontWeight: 700, mb: 3, color: '#0a1628' }}
+              >
+                Open Positions ({jobPosts.length})
+              </Typography>
+              <Grid container spacing={3}>
+                {jobPosts.map((job) => (
+                  <Grid item xs={12} sm={6} md={4} key={job.id}>
+                    <Card
+                      elevation={2}
+                      sx={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'transform 0.2s, box-shadow 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: 6,
+                        },
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => router.push(`/jobs/${job.slug || job.id}`)}
+                    >
+                      <CardContent sx={{ flex: 1, p: 3 }}>
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
+                          gutterBottom
+                          sx={{ color: '#0a1628', lineHeight: 1.3 }}
+                        >
+                          {job.title}
+                        </Typography>
+
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                          {job.employment_type && (
+                            <Chip
+                              icon={<Work sx={{ fontSize: 16 }} />}
+                              label={employmentTypeLabels[job.employment_type] || job.employment_type}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                          {job.location && (
+                            <Chip
+                              icon={<LocationOn sx={{ fontSize: 16 }} />}
+                              label={job.location}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
+
+                        {job.department && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            {job.department}
+                          </Typography>
+                        )}
+
+                        {(job.salary_range_min || job.salary_range_max) && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                            <CurrencyRupee sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {formatSalaryRange(job.salary_range_min, job.salary_range_max)}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mt: 1,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {job.description}
+                        </Typography>
+                      </CardContent>
+
+                      <CardActions sx={{ px: 3, pb: 2 }}>
+                        <Button
+                          variant="contained"
+                          endIcon={<ArrowForward />}
+                          fullWidth
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/jobs/${job.slug || job.id}`);
+                          }}
+                          sx={{
+                            backgroundColor: t.buttonBg,
+                            color: t.buttonText,
+                            '&:hover': {
+                              backgroundColor: t.buttonBg,
+                              opacity: 0.9,
+                            },
+                          }}
+                        >
+                          View & Apply
+                        </Button>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </>
+          )}
+        </Container>
+
+        {/* Footer */}
+        <Box sx={{ textAlign: 'center', py: 3, opacity: 0.6 }}>
+          <Typography variant="body2" color="text.secondary">
+            {brandConfig.name} Careers
+          </Typography>
+        </Box>
       </Box>
     </>
   );

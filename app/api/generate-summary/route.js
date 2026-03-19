@@ -2,9 +2,6 @@ import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '../../../lib/supabase/server';
 import pdfParse from 'pdf-parse';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -15,10 +12,8 @@ async function extractTextWithVision(buffer) {
   console.log('Using OpenAI Vision API with direct PDF support...');
 
   try {
-    // Convert buffer to base64
     const base64Pdf = buffer.toString('base64');
 
-    // Send PDF directly to GPT-4o (OpenAI now supports PDF files natively)
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -60,7 +55,6 @@ async function extractTextFromPDF(buffer) {
       return { text: data.text, method: 'pdf-parse' };
     }
 
-    // pdf-parse returned insufficient text, try Vision
     console.log('pdf-parse extracted insufficient text, falling back to Vision API...');
     const visionText = await extractTextWithVision(buffer);
     return { text: visionText, method: 'vision' };
@@ -68,7 +62,6 @@ async function extractTextFromPDF(buffer) {
   } catch (error) {
     console.error('pdf-parse failed:', error.message);
 
-    // Fallback to Vision API
     try {
       const visionText = await extractTextWithVision(buffer);
       return { text: visionText, method: 'vision' };
@@ -77,6 +70,77 @@ async function extractTextFromPDF(buffer) {
       throw new Error('Failed to extract text from PDF using both methods');
     }
   }
+}
+
+function buildDynamicPrompt(jobDescription, jobRequirements, jobTitle) {
+  return `You are an expert recruitment analyst. You will be given a job description and a candidate's resume. Your task is to evaluate how well the candidate fits the role.
+
+STEP 1: Based on the job description below, identify 3-5 key evaluation criteria relevant to this role. Distribute a total of 10 points across these criteria based on their importance for the role.
+
+STEP 2: Score the candidate's resume against each criterion you identified.
+
+JOB TITLE: ${jobTitle}
+
+JOB DESCRIPTION:
+${jobDescription}
+${jobRequirements ? `\nKEY REQUIREMENTS:\n${jobRequirements}` : ''}
+
+RESPONSE FORMAT (JSON):
+{
+  "extracted_data": {
+    "education": "Degree details",
+    "certifications": ["List all certifications"],
+    "current_position": "Current role",
+    "current_company": "Current company",
+    "total_experience_years": number,
+    "skills": ["All relevant skills"],
+    "work_history": [
+      {
+        "company": "Company name",
+        "role": "Job title",
+        "duration": "Years/months",
+        "key_responsibilities": ["Major responsibilities"]
+      }
+    ]
+  },
+  "evaluation_criteria": [
+    {
+      "name": "Criterion name",
+      "max_points": number,
+      "score": number,
+      "reasoning": "Why this score was given"
+    }
+  ],
+  "overall_score": 0.0-10.0,
+  "recommendation": "Highly Recommended" | "Recommended" | "Maybe" | "Not Recommended",
+  "detailed_analysis": "Write a conversational, detailed analysis in this format:
+
+[Candidate Name] – [Current Company] ([Years] yrs experience)
+
+Score: X.X / 10
+
+Strengths:
+• [Bullet point 1 - be specific with skills, achievements, metrics]
+• [Bullet point 2 - mention relevant experience and qualifications]
+• [Bullet point 3 - highlight unique skills or experiences]
+• [Add more as needed]
+
+Gaps:
+• [Specific gap 1 - what's missing for this role]
+• [Specific gap 2 - skill or experience limitations]
+• [Specific gap 3 - areas needing development]
+
+Fit for Role:
+[2-3 sentences explaining suitability for this specific position, growth potential]
+
+Recommendation:
+[Highly Recommended/Recommended/Maybe/Not Recommended] — [Brief reasoning]",
+  "key_strengths": ["3-5 key strengths relevant to this role"],
+  "areas_of_concern": ["Specific gaps or limitations for this role"],
+  "fit_for_role": "Detailed assessment of fit for this specific position"
+}
+
+Be conversational, specific, and honest. Mention exact skills, systems, metrics, and achievements. Be clear about gaps relative to the job requirements.`;
 }
 
 export async function POST(request) {
@@ -88,6 +152,31 @@ export async function POST(request) {
         { error: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Look up the candidate to get job_post_id
+    const { data: candidate, error: candidateError } = await supabaseAdmin
+      .from('candidates')
+      .select('job_post_id')
+      .eq('id', candidateId)
+      .single();
+
+    if (candidateError) {
+      console.error('Candidate lookup error:', candidateError);
+    }
+
+    // Look up the job post for dynamic AI prompt
+    let jobPost = null;
+    if (candidate?.job_post_id) {
+      const { data: jobData, error: jobError } = await supabaseAdmin
+        .from('job_posts')
+        .select('title, description, requirements')
+        .eq('id', candidate.job_post_id)
+        .single();
+
+      if (!jobError && jobData) {
+        jobPost = jobData;
+      }
     }
 
     // Download resume from Supabase Storage
@@ -103,11 +192,9 @@ export async function POST(request) {
       );
     }
 
-    // Convert blob to buffer
     const arrayBuffer = await resumeData.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract text from PDF (tries pdf-parse first, falls back to Vision if needed)
     const { text: resumeText, method } = await extractTextFromPDF(buffer);
     console.log(`Text extracted using: ${method}`);
 
@@ -118,100 +205,26 @@ export async function POST(request) {
       );
     }
 
-    // Generate comprehensive AI analysis using OpenAI
+    // Build system prompt - dynamic if job post exists, fallback to generic
+    const systemPrompt = jobPost
+      ? buildDynamicPrompt(jobPost.description, jobPost.requirements, jobPost.title)
+      : buildDynamicPrompt(
+          'General software/technology role. Evaluate the candidate based on their overall skills, experience, and qualifications.',
+          null,
+          position || 'General Position'
+        );
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-turbo-preview',
       messages: [
         {
           role: 'system',
-          content: `You are an expert trade finance recruitment analyst evaluating candidates from trade operations for transition into technology roles (QA Analyst, Business Analyst, Functional Consultant) in trade finance.
-
-EVALUATION CRITERIA (Total: 10 points):
-
-1. **Tech Background (3 points)**:
-   - Computer Science/IT degree or certifications: 1.5 pts
-   - BA/UAT testing exposure: 1 pt
-   - Tech courses, certifications (SQL, automation tools, SDLC knowledge): 0.5 pts
-
-2. **Trade Finance Breadth (3 points)**:
-   - Deep knowledge across multiple products (Import/Export LC, Collections, Guarantees, SBLC, BG, Payments): 3 pts
-   - Moderate breadth (2-3 products): 2 pts
-   - Limited to one area: 1 pt
-
-3. **Hands-on LC/Doc Checking/UAT Experience (2 points)**:
-   - Direct LC operations/document checking: 1 pt
-   - UAT testing, requirements gathering, or system testing: 1 pt
-
-4. **Digital Transformation Exposure (2 points)**:
-   - Directly involved in digital transformation/automation projects: 1 pt
-   - Process improvement, system testing, or IT coordination: 1 pt
-
-RESPONSE FORMAT (JSON):
-{
-  "extracted_data": {
-    "education": "Degree details",
-    "certifications": ["List all certifications"],
-    "current_position": "Current role",
-    "current_company": "Current company",
-    "total_experience_years": number,
-    "trade_finance_experience_years": number,
-    "skills": ["All relevant skills"],
-    "work_history": [
-      {
-        "company": "Company name",
-        "role": "Job title",
-        "duration": "Years/months",
-        "key_responsibilities": ["Major responsibilities"]
-      }
-    ],
-    "trade_finance_products": ["Import LC", "Export LC", "Collections", "SBLC", "BG", "Guarantees", "Payments", etc.],
-    "swift_messages": ["MT700", "MT710", "MT760", etc.]
-  },
-  "scoring": {
-    "tech_background_score": 0.0-3.0,
-    "tech_background_reasoning": "Explain tech background evaluation",
-    "trade_finance_breadth_score": 0.0-3.0,
-    "trade_finance_breadth_reasoning": "Explain product breadth",
-    "hands_on_experience_score": 0.0-2.0,
-    "hands_on_experience_reasoning": "Explain hands-on experience",
-    "digital_transformation_score": 0.0-2.0,
-    "digital_transformation_reasoning": "Explain digital/tech exposure",
-    "overall_score": 0.0-10.0
-  },
-  "recommendation": "Highly Recommended" | "Recommended" | "Maybe" | "Not Recommended",
-  "detailed_analysis": "Write a conversational, detailed analysis in this format:
-
-[Candidate Name] – [Current Company] ([Years] yrs TF experience, [Key specialization])
-
-Score: X.X / 10
-
-Strengths:
-• [Bullet point 1 - be specific with products, systems, achievements]
-• [Bullet point 2 - mention SWIFT messages, accuracy rates, metrics]
-• [Bullet point 3 - highlight unique skills or experiences]
-• [Add more as needed]
-
-Gaps:
-• [Specific gap 1 - what's missing for tech transition]
-• [Specific gap 2 - product breadth limitations]
-• [Specific gap 3 - technical skill gaps]
-
-Fit for Venzo:
-[2-3 sentences explaining suitability for QA/BA/Consultant roles, growth potential]
-
-Proceed: 
-[Yes/Maybe/No] — [Brief reasoning]",
-  "key_strengths": ["3-5 key strengths"],
-  "areas_of_concern": ["Specific gaps or limitations"],
-  "fit_for_role": "Detailed assessment of fit for QA → BA → Consultant track"
-}
-
-Be conversational, specific, and honest. Mention exact products, SWIFT messages, systems, metrics, and achievements. Be clear about gaps.`
+          content: systemPrompt,
         },
         {
           role: 'user',
           content: `Candidate Name: ${candidateName || 'N/A'}
-Applied Position: ${position || 'N/A'}
+${jobPost ? `Applied For: ${jobPost.title}` : `Applied Position: ${position || 'N/A'}`}
 
 Resume Content:
 ${resumeText.substring(0, 8000)}`
@@ -231,26 +244,22 @@ ${resumeText.substring(0, 8000)}`
       );
     }
 
-    // Parse the JSON response with error handling
     let analysis;
     try {
       analysis = JSON.parse(analysisText);
     } catch (parseError) {
       console.error('JSON Parse Error:', parseError);
-      console.error('Raw AI Response:', analysisText);
-
       return NextResponse.json(
         {
           error: 'Failed to parse AI analysis',
           details: parseError.message,
-          rawResponse: analysisText.substring(0, 500) // First 500 chars for debugging
+          rawResponse: analysisText.substring(0, 500)
         },
         { status: 500 }
       );
     }
 
-    // Validate analysis structure
-    if (!analysis.extracted_data || !analysis.scoring) {
+    if (!analysis.extracted_data) {
       console.error('Invalid analysis structure:', analysis);
       return NextResponse.json(
         { error: 'Invalid analysis structure returned by AI' },
@@ -258,37 +267,28 @@ ${resumeText.substring(0, 8000)}`
       );
     }
 
-    const { extracted_data, scoring, recommendation, detailed_analysis, key_strengths, areas_of_concern } = analysis;
+    const { extracted_data, evaluation_criteria, recommendation, detailed_analysis, key_strengths, areas_of_concern } = analysis;
 
-    // Prepare update data for candidate record
+    // Calculate overall score from evaluation criteria if not provided directly
+    const overallScore = analysis.overall_score ||
+      (evaluation_criteria ? evaluation_criteria.reduce((sum, c) => sum + (c.score || 0), 0) : 0);
+
     const updateData = {
-      ai_summary: detailed_analysis || analysis.summary, // Use detailed_analysis as the main summary
+      ai_summary: detailed_analysis || analysis.summary,
       ai_analysis: analysis,
-      // Extracted data
       education: extracted_data.education || null,
       certifications: extracted_data.certifications || [],
       position: extracted_data.current_position || position || null,
-      current_salary: extracted_data.current_salary || null,
       total_experience_years: extracted_data.total_experience_years || null,
-      trade_finance_experience_years: extracted_data.trade_finance_experience_years || null,
       experience: Math.round(extracted_data.total_experience_years || 0),
       skills: extracted_data.skills || [],
       work_history: extracted_data.work_history || [],
-      trade_finance_products: extracted_data.trade_finance_products || [],
-      // Add SWIFT messages if available in extracted_data
-      ...(extracted_data.swift_messages && { swift_messages: extracted_data.swift_messages }),
-      // Scoring
-      tech_background_score: scoring.tech_background_score || 0,
-      trade_finance_breadth_score: scoring.trade_finance_breadth_score || 0,
-      hands_on_experience_score: scoring.hands_on_experience_score || 0,
-      digital_transformation_score: scoring.digital_transformation_score || 0,
-      overall_score: scoring.overall_score || 0,
+      overall_score: overallScore,
       recommendation: recommendation || 'Not Recommended',
       key_strengths: key_strengths || [],
       areas_of_concern: areas_of_concern || [],
     };
 
-    // Update candidate record with comprehensive analysis
     const { error: updateError } = await supabaseAdmin
       .from('candidates')
       .update(updateData)
