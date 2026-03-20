@@ -278,7 +278,7 @@ ${resumeText.substring(0, 8000)}`
       ai_analysis: analysis,
       education: extracted_data.education || null,
       certifications: extracted_data.certifications || [],
-      position: extracted_data.current_position || position || null,
+      position: (jobPost ? jobPost.title : null) || position || null,
       total_experience_years: extracted_data.total_experience_years || null,
       experience: Math.round(extracted_data.total_experience_years || 0),
       skills: extracted_data.skills || [],
