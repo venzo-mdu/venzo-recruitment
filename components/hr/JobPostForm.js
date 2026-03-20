@@ -151,7 +151,7 @@ export default function JobPostForm({ existingJob = null, onSuccess }) {
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1 }}>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.back()}
           sx={{ mr: 1 }}
         >
           Back
@@ -346,7 +346,7 @@ export default function JobPostForm({ existingJob = null, onSuccess }) {
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
               <Button
                 variant="outlined"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.back()}
                 disabled={loading}
               >
                 Cancel
