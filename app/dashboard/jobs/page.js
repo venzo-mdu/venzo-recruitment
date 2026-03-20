@@ -163,9 +163,6 @@ export default function JobsPage() {
   });
 
   // Group by brand
-  const venzoJobs = filteredJobs.filter(j => j.brand === 'venzo');
-  const kytzJobs = filteredJobs.filter(j => j.brand === 'kytz');
-  const shelfiJobs = filteredJobs.filter(j => j.brand === 'shelfi');
 
   const JobCard = ({ job }) => {
     const statusConfig = STATUS_CONFIG[job.status] || STATUS_CONFIG.DRAFT;
@@ -277,22 +274,16 @@ export default function JobsPage() {
     );
   };
 
-  const JobSection = ({ title, jobs, brandColor }) => {
+  const JobGrid = ({ jobs }) => {
     if (jobs.length === 0) return null;
     return (
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <Typography variant="h6" fontWeight="bold">{title}</Typography>
-          <Chip label={jobs.length} size="small" color={brandColor} variant="outlined" />
-        </Box>
-        <Grid container spacing={2}>
-          {jobs.map(job => (
-            <Grid item xs={12} sm={6} md={4} key={job.id}>
-              <JobCard job={job} />
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
+      <Grid container spacing={2}>
+        {jobs.map(job => (
+          <Grid item xs={6} sm={4} md={3} key={job.id}>
+            <JobCard job={job} />
+          </Grid>
+        ))}
+      </Grid>
     );
   };
 
@@ -369,9 +360,7 @@ export default function JobsPage() {
         </Alert>
       ) : (
         <>
-          <JobSection title="Venzo Technologies" jobs={venzoJobs} brandColor="primary" />
-          <JobSection title="Kytz Labs" jobs={kytzJobs} brandColor="secondary" />
-          <JobSection title="SHELFi" jobs={shelfiJobs} brandColor="error" />
+          <JobGrid jobs={filteredJobs} />
         </>
       )}
 

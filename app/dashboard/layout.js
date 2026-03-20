@@ -62,14 +62,15 @@ export default function DashboardLayout({ children }) {
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
       <AppBar position="static" elevation={2}>
-        <Toolbar>
-          <Box sx={{ mr: 2 }}>
-            <Logo width={120} height={40} variant="white" />
+        {/* Main toolbar */}
+        <Toolbar sx={{ flexWrap: 'wrap', gap: { xs: 0.5, md: 0 }, py: { xs: 0.5, md: 0 } }}>
+          <Box sx={{ mr: { xs: 1, md: 2 } }}>
+            <Logo width={100} height={35} variant="white" />
           </Box>
           <Typography
             variant="h6"
             component="div"
-            sx={{ fontWeight: 'bold', ml: 1, cursor: 'pointer', mr: 4 }}
+            sx={{ fontWeight: 'bold', cursor: 'pointer', mr: { xs: 1, md: 4 }, fontSize: { xs: '1rem', md: '1.25rem' } }}
             onClick={() => router.push('/dashboard')}
           >
             CandidAI
@@ -85,8 +86,9 @@ export default function DashboardLayout({ children }) {
                 onClick={() => router.push(item.path)}
                 sx={{
                   textTransform: 'none',
-                  fontSize: '0.85rem',
-                  px: 2,
+                  fontSize: { xs: '0.75rem', md: '0.85rem' },
+                  px: { xs: 1, md: 2 },
+                  minWidth: 'auto',
                   borderRadius: 1,
                   backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.15)' : 'transparent',
                   '&:hover': {
@@ -100,16 +102,26 @@ export default function DashboardLayout({ children }) {
           </Box>
 
           <Box sx={{ flexGrow: 1 }} />
-          <Typography variant="body2" sx={{ mr: 3, display: { xs: 'none', sm: 'block' } }}>
+
+          {/* Email — hidden on mobile */}
+          <Typography variant="body2" sx={{ mr: 2, display: { xs: 'none', md: 'block' }, fontSize: '0.8rem' }}>
             {user?.email}
           </Typography>
+
+          {/* Logout — icon only on mobile, text on desktop */}
           <Button
             color="inherit"
             onClick={handleLogout}
-            startIcon={<Logout />}
-            sx={{ textTransform: 'none', fontSize: '0.85rem' }}
+            startIcon={<Logout fontSize="small" />}
+            sx={{
+              textTransform: 'none',
+              fontSize: '0.8rem',
+              minWidth: 'auto',
+              px: { xs: 1, md: 2 },
+              '& .MuiButton-startIcon': { mr: { xs: 0, md: 0.5 } },
+            }}
           >
-            Logout
+            <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>Logout</Box>
           </Button>
         </Toolbar>
       </AppBar>
