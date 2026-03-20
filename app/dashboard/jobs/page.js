@@ -48,6 +48,7 @@ import {
 } from '@mui/icons-material';
 import { getJobPosts, deleteJobPost } from '../../../lib/services/jobPostService';
 import { useAuth } from '../../../hooks/useAuth';
+import { BRANDS } from '../../../lib/constants/brands';
 
 const STATUS_CONFIG = {
   OPEN: { label: 'Open', color: 'success' },
@@ -185,10 +186,9 @@ export default function JobsPage() {
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
               <Chip label={statusConfig.label} color={statusConfig.color} size="small" />
               <Chip
-                label={job.brand === 'kytz' ? 'Kytz' : 'Venzo'}
+                label={BRANDS[job.brand]?.name || job.brand}
                 size="small"
                 variant="outlined"
-                color={job.brand === 'kytz' ? 'secondary' : 'primary'}
                 sx={{ fontSize: '0.7rem', height: 22 }}
               />
             </Box>
